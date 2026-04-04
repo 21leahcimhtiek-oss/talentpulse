@@ -1,59 +1,37 @@
-import { ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
-import { formatDate, getSentimentColor, getSentimentLabel } from '@/lib/utils';
-import type { Feedback360 } from '@/types';
+import { formatDate } from '@/lib/utils';
+import type { PeerFeedback } from '@/types';
 
-interface FeedbackCardProps {
-  feedback: Feedback360;
-  fromName?: string;
-  isAdmin?: boolean;
+interface Props {
+  feedback: PeerFeedback & { giver?: { full_name?: string; avatar_url?: string | null } };
 }
 
-const sentimentIcons = {
-  Positive: <ThumbsUp size={13} />,
-  Neutral: <Minus size={13} />,
-  Negative: <ThumbsDown size={13} />,
+const sentimentStyles: Record<string, string> = {
+  positive: 'bg-green-50 text-green-700',
+  neutral: 'bg-slate-50 text-slate-600',
+  negative: 'bg-red-50 text-red-600',
 };
 
-const sentimentBg = {
-  Positive: 'bg-green-50 border-green-200 text-green-700',
-  Neutral: 'bg-gray-50 border-gray-200 text-gray-600',
-  Negative: 'bg-red-50 border-red-200 text-red-700',
-};
-
-export default function FeedbackCard({ feedback, fromName, isAdmin = false }: FeedbackCardProps) {
-  const label = getSentimentLabel(feedback.sentiment);
-  const displayName = isAdmin && fromName ? fromName : 'Team Member';
-  const scorePercent = Math.round(((feedback.sentiment + 1) / 2) * 100);
-
+export default function FeedbackCard({ feedback }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-gray-800 leading-relaxed flex-1">{feedback.content}</p>
-        <span className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border whitespace-nowrap ${sentimentBg[label]}`}>
-          {sentimentIcons[label]}
-          {label}
-        </span>
-      </div>
-
-      {/* Sentiment score bar */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>Sentiment</span>
-          <span className={getSentimentColor(feedback.sentiment)}>{scorePercent}%</span>
+    <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-500 shrink-0">
+          {feedback.is_anonymous ? '?' : feedback.giver?.full_name?.charAt(0) ?? '?'}
         </div>
-        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              feedback.sentiment >= 0.3 ? 'bg-green-500' : feedback.sentiment >= -0.2 ? 'bg-gray-400' : 'bg-red-500'
-            }`}
-            style={{ width: `${scorePercent}%` }}
-          />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-slate-900">
+              {feedback.is_anonymous ? 'Anonymous' : feedback.giver?.full_name ?? 'Unknown'}
+            </p>
+            {feedback.sentiment_label && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sentimentStyles[feedback.sentiment_label] ?? sentimentStyles.neutral}`}>
+                {feedback.sentiment_label}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">{feedback.content}</p>
+          <p className="text-xs text-slate-400 mt-2">{formatDate(feedback.created_at as string)}</p>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-gray-400 pt-1 border-t border-gray-100">
-        <span className="font-medium text-gray-500">{displayName}</span>
-        <span>{formatDate(feedback.created_at)}</span>
       </div>
     </div>
   );
