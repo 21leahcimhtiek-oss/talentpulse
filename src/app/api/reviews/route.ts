@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
-    const period = searchParams.get('period');
+    const period     = searchParams.get('period');
 
     let query = supabase
       .from('reviews')
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (employeeId) query = query.eq('employee_id', employeeId);
-    if (period) query = query.eq('period', period);
+    if (period)     query = query.eq('period', period);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       .from('reviews')
       .insert({
         ...validated.data,
-        org_id: userData.org_id,
+        org_id:      userData.org_id,
         reviewer_id: user.id,
       })
       .select()
