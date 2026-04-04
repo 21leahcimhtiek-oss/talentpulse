@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for') ?? 'anonymous';
+    // Strict 5/hour limit — configure coaching:post:strict:* in the rate-limit module
     const { success } = await rateLimit(`coaching:post:strict:${ip}`);
     if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
 
@@ -103,17 +104,17 @@ export async function POST(request: NextRequest) {
     if (okrsResult.error) throw okrsResult.error;
 
     const coachingContent = await generateCoaching({
-      reviews: reviewsResult.data ?? [],
+      reviews:  reviewsResult.data ?? [],
       feedback: feedbackResult.data ?? [],
-      okrs: okrsResult.data ?? [],
+      okrs:     okrsResult.data ?? [],
     });
 
     const { data: coachingLog, error: insertError } = await supabase
       .from('coaching_logs')
       .insert({
         employee_id,
-        org_id: userData.org_id,
-        content: coachingContent,
+        org_id:       userData.org_id,
+        content:      coachingContent,
         generated_by: user.id,
       })
       .select()
