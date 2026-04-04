@@ -7,7 +7,7 @@ import { rateLimit } from '@/lib/rate-limit';
 
 const inviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(['admin', 'manager', 'employee']),
+  role:  z.enum(['admin', 'manager', 'employee']),
 });
 
 const adminClient = createAdminClient(
@@ -44,10 +44,7 @@ export async function POST(request: NextRequest) {
     const { email, role } = validated.data;
 
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: {
-        org_id: userData.org_id,
-        role,
-      },
+      data: { org_id: userData.org_id, role },
     });
 
     if (inviteError) {
