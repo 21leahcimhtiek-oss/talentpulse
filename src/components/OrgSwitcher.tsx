@@ -1,95 +1,65 @@
 'use client';
-import { Building2, ChevronDown, Settings, CreditCard, LogOut } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-interface OrgSwitcherProps {
-  orgName: string;
-  plan: string;
-  userEmail: string;
+interface Org {
+  id: string;
+  name: string;
 }
 
-const planBadgeClass: Record<string, string> = {
-  starter: 'bg-gray-100 text-gray-500',
-  pro: 'bg-indigo-100 text-indigo-600',
-  enterprise: 'bg-purple-100 text-purple-600',
-};
-
-export default function OrgSwitcher({ orgName, plan, userEmail }: OrgSwitcherProps) {
+export default function OrgSwitcher() {
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [currentOrg, setCurrentOrg] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from('profiles')
+        .select('org_id, organizations(id, name)')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          const orgData = data as { org_id?: string; organizations?: Org | Org[] | null } | null;
+          if (orgData?.organizations) {
+            const orgsArr = Array.isArray(orgData.organizations) ? orgData.organizations : [orgData.organizations];
+            setOrgs(orgsArr);
+            setCurrentOrg(orgData.org_id ?? null);
+          }
+        });
+    });
   }, []);
 
-  async function handleSignOut() {
-    setSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
+  if (!orgs.length) return null;
+
+  const current = orgs.find(o => o.id === currentOrg);
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-sm"
-        aria-expanded={open}
-        aria-haspopup="true"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 text-sm font-medium text-slate-700 transition-colors w-full"
       >
-        <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center flex-shrink-0">
-          <Building2 size={12} className="text-white" />
-        </div>
-        <div className="text-left hidden sm:block">
-          <p className="font-medium text-gray-900 text-xs leading-tight">{orgName}</p>
-          <p className="text-gray-400 text-xs leading-tight truncate max-w-[140px]">{userEmail}</p>
-        </div>
-        <span className={`hidden sm:inline text-xs font-medium px-1.5 py-0.5 rounded capitalize ${planBadgeClass[plan] || planBadgeClass.starter}`}>
-          {plan}
+        <span className="w-5 h-5 rounded bg-primary-200 flex items-center justify-center text-xs font-bold text-primary-800">
+          {current?.name.charAt(0) ?? '?'}
         </span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="flex-1 text-left truncate">{current?.name ?? 'Select Org'}</span>
+        <span className="text-slate-400 text-xs">{open ? '▲' : '▼'}</span>
       </button>
-
-      {open && (
-        <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl border border-gray-200 shadow-lg z-50 py-1 overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100">
-            <p className="text-xs font-medium text-gray-900 truncate">{orgName}</p>
-            <p className="text-xs text-gray-400 truncate">{userEmail}</p>
-          </div>
-          <div className="py-1">
+      {open && orgs.length > 1 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1">
+          {orgs.map(org => (
             <button
-              onClick={() => { setOpen(false); router.push('/settings'); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              key={org.id}
+              onClick={() => { setCurrentOrg(org.id); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${org.id === currentOrg ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-700 hover:bg-slate-50'}`}
             >
-              <Settings size={15} className="text-gray-400" />
-              Settings
+              {org.name}
             </button>
-            <button
-              onClick={() => { setOpen(false); router.push('/billing'); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <CreditCard size={15} className="text-gray-400" />
-              Billing
-            </button>
-          </div>
-          <div className="py-1 border-t border-gray-100">
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <LogOut size={15} className="text-red-400" />
-              {signingOut ? 'Signing out...' : 'Sign Out'}
-            </button>
-          </div>
+          ))}
         </div>
       )}
     </div>
