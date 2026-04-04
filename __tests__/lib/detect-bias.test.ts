@@ -6,31 +6,18 @@ jest.mock('openai');
 jest.mock('@sentry/nextjs', () => ({ captureException: jest.fn() }));
 
 const mockSentryCapture = Sentry.captureException as jest.MockedFunction<typeof Sentry.captureException>;
-
-const mockCreate = jest.fn();
 const MockOpenAI = OpenAI as jest.MockedClass<typeof OpenAI>;
+const mockCreate = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
   MockOpenAI.mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: mockCreate,
-      },
-    },
+    chat: { completions: { create: mockCreate } },
   } as any));
 });
 
 function makeOpenAIResponse(content: string) {
-  return {
-    choices: [
-      {
-        message: {
-          content,
-        },
-      },
-    ],
-  };
+  return { choices: [{ message: { content } }] };
 }
 
 describe('detectBias', () => {
@@ -54,11 +41,8 @@ describe('detectBias', () => {
 
   it('parses successful OpenAI response correctly', async () => {
     const responseContent = JSON.stringify({
-      hasBias: false,
-      biasTypes: [],
-      confidence: 0.95,
-      explanation: 'No bias detected in the text',
-      suggestedRevision: null,
+      hasBias: false, biasTypes: [], confidence: 0.95,
+      explanation: 'No bias detected in the text', suggestedRevision: null,
     });
     mockCreate.mockResolvedValueOnce(makeOpenAIResponse(responseContent));
 
@@ -70,9 +54,7 @@ describe('detectBias', () => {
 
   it('returns hasBias true when bias types are found', async () => {
     const responseContent = JSON.stringify({
-      hasBias: true,
-      biasTypes: ['gender', 'age'],
-      confidence: 0.88,
+      hasBias: true, biasTypes: ['gender', 'age'], confidence: 0.88,
       explanation: 'Gender and age bias detected',
       suggestedRevision: 'Rephrase using neutral language',
     });
@@ -87,13 +69,9 @@ describe('detectBias', () => {
 
   it('retries on failure and succeeds on third attempt', async () => {
     const successResponse = makeOpenAIResponse(JSON.stringify({
-      hasBias: false,
-      biasTypes: [],
-      confidence: 0.9,
-      explanation: 'Clean text',
-      suggestedRevision: null,
+      hasBias: false, biasTypes: [], confidence: 0.9,
+      explanation: 'Clean text', suggestedRevision: null,
     }));
-
     mockCreate
       .mockRejectedValueOnce(new Error('Transient error 1'))
       .mockRejectedValueOnce(new Error('Transient error 2'))
@@ -114,10 +92,8 @@ describe('detectBias', () => {
 
   it('sets confidence to 0 if missing from response', async () => {
     const responseContent = JSON.stringify({
-      hasBias: false,
-      biasTypes: [],
-      explanation: 'No issues found',
-      suggestedRevision: null,
+      hasBias: false, biasTypes: [],
+      explanation: 'No issues found', suggestedRevision: null,
     });
     mockCreate.mockResolvedValueOnce(makeOpenAIResponse(responseContent));
 
@@ -127,10 +103,7 @@ describe('detectBias', () => {
 
   it('returns null suggestedRevision when not present in response', async () => {
     const responseContent = JSON.stringify({
-      hasBias: false,
-      biasTypes: [],
-      confidence: 0.7,
-      explanation: 'Looks fine',
+      hasBias: false, biasTypes: [], confidence: 0.7, explanation: 'Looks fine',
     });
     mockCreate.mockResolvedValueOnce(makeOpenAIResponse(responseContent));
 
