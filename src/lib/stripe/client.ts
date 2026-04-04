@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+  throw new Error('STRIPE_SECRET_KEY is not set');
 }
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -14,8 +14,17 @@ export const PLAN_PRICE_IDS: Record<string, string> = {
   pro: process.env.STRIPE_PRO_PRICE_ID ?? '',
 };
 
-export const PLAN_LIMITS: Record<string, number> = {
-  starter: 25,
-  pro: -1,
-  enterprise: -1,
-};
+export async function getOrCreateCustomer(
+  orgId: string,
+  email: string,
+  name: string
+): Promise<string> {
+  const existing = await stripe.customers.list({ email, limit: 1 });
+  if (existing.data.length > 0) return existing.data[0].id;
+  const customer = await stripe.customers.create({
+    email,
+    name,
+    metadata: { org_id: orgId },
+  });
+  return customer.id;
+}
