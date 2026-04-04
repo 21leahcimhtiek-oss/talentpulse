@@ -1,157 +1,132 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { z } from 'zod';
-import { Loader2, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import type { Employee } from '@/types';
 
-const reviewSchema = z.object({
-  employee_id: z.string().uuid(),
-  period: z.string().min(1),
-  score: z.number().min(1).max(5),
-  strengths: z.string().min(20, 'Strengths must be at least 20 characters'),
-  improvements: z.string().min(20, 'Areas for improvement must be at least 20 characters'),
-});
+interface Employee { id: string; full_name: string | null; email: string | null; }
 
-interface ReviewFormProps {
+interface Props {
   employees: Employee[];
 }
 
-interface SubmitResult {
-  success: boolean;
-  biasFlag?: boolean;
-  biasNote?: string;
-  error?: string;
-}
-
-export default function ReviewForm({ employees }: ReviewFormProps) {
+export default function ReviewForm({ employees }: Props) {
   const router = useRouter();
-  const [employeeId, setEmployeeId] = useState('');
-  const [period, setPeriod] = useState('');
-  const [score, setScore] = useState(0);
-  const [hoveredStar, setHoveredStar] = useState(0);
-  const [strengths, setStrengths] = useState('');
-  const [improvements, setImprovements] = useState('');
+  const [form, setForm] = useState({
+    reviewee_id: '',
+    cycle: '',
+    overall_score: 3,
+    strengths: '',
+    improvements: '',
+    comments: '',
+  });
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<SubmitResult | null>(null);
-
-  function validate() {
-    const parsed = reviewSchema.safeParse({ employee_id: employeeId, period, score, strengths, improvements });
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      parsed.error.errors.forEach((e) => { if (e.path[0]) fieldErrors[e.path[0] as string] = e.message; });
-      setErrors(fieldErrors);
-      return false;
-    }
-    setErrors({});
-    return true;
-  }
+  const [biasResult, setBiasResult] = useState<{ bias_free: boolean; flags: { type: string; description: string }[]; overall_assessment: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
     setLoading(true);
-    try {
-      const res = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employeeId, period, score, strengths, improvements }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setResult({ success: false, error: data.error || 'Submission failed' }); return; }
-      setResult({ success: true, biasFlag: data.ai_bias_flag, biasNote: data.bias_note });
-      setTimeout(() => router.push('/reviews'), 2500);
-    } catch {
-      setResult({ success: false, error: 'Network error. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
-  }
+    setError(null);
+    setBiasResult(null);
 
-  if (result?.success) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 max-w-lg mx-auto text-center space-y-4">
-        <CheckCircle2 className="mx-auto text-green-500" size={48} />
-        <h2 className="text-xl font-semibold text-gray-900">Review Submitted</h2>
-        {result.biasFlag ? (
-          <div className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
-            <AlertTriangle size={18} className="text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800">Potential Bias Detected</p>
-              <p className="text-xs text-yellow-700 mt-0.5">
-                {result.biasNote || 'Our AI detected language patterns that may indicate bias. A reviewer will assess this submission.'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No bias indicators detected. Redirecting to reviews...</p>
-        )}
-      </div>
-    );
+    const res = await fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    const json = await res.json();
+
+    if (!res.ok) { setError(json.error); setLoading(false); return; }
+
+    if (json.bias && !json.bias.bias_free) {
+      setBiasResult(json.bias);
+      setLoading(false);
+      return;
+    }
+
+    router.push('/reviews');
+    router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 max-w-lg mx-auto space-y-5">
-      <h2 className="text-lg font-semibold text-gray-900">Submit Performance Review</h2>
-      {result?.error && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-          <AlertTriangle size={16} />{result.error}
+    <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Employee</label>
+        <select
+          value={form.reviewee_id}
+          onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}
+          required
+          className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">Select employee…</option>
+          {employees.map(emp => (
+            <option key={emp.id} value={emp.id}>{emp.full_name ?? emp.email}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Review Cycle (e.g. Q4 2024)</label>
+        <input
+          value={form.cycle}
+          onChange={e => setForm(f => ({ ...f, cycle: e.target.value }))}
+          required
+          placeholder="Q4 2024"
+          className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Overall Score: {form.overall_score}/5</label>
+        <input
+          type="range" min={1} max={5} step={0.5}
+          value={form.overall_score}
+          onChange={e => setForm(f => ({ ...f, overall_score: parseFloat(e.target.value) }))}
+          className="w-full accent-primary-600"
+        />
+      </div>
+
+      {[
+        { key: 'strengths', label: 'Strengths', placeholder: 'What does this employee do well?' },
+        { key: 'improvements', label: 'Areas for Improvement', placeholder: 'Where can they grow?' },
+        { key: 'comments', label: 'Additional Comments', placeholder: 'Any other observations…' },
+      ].map(({ key, label, placeholder }) => (
+        <div key={key}>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+          <textarea
+            value={form[key as keyof typeof form] as string}
+            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+            rows={3}
+            placeholder={placeholder}
+            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+          />
+        </div>
+      ))}
+
+      {biasResult && !biasResult.bias_free && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="font-semibold text-amber-800 mb-2">⚠️ Potential Bias Detected</p>
+          <p className="text-sm text-amber-700 mb-3">{biasResult.overall_assessment}</p>
+          <ul className="space-y-1">
+            {biasResult.flags.map((f, i) => (
+              <li key={i} className="text-sm text-amber-700">• <strong>{f.type}</strong>: {f.description}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-amber-600 mt-3">Please revise your review or click Submit anyway to proceed.</p>
+          <button type="submit" className="mt-3 px-4 py-2 border border-amber-400 text-amber-800 text-sm font-medium rounded-lg hover:bg-amber-100 transition-colors" onClick={() => setBiasResult(null)}>
+            Submit Anyway
+          </button>
         </div>
       )}
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Employee</label>
-        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <option value="">Select employee...</option>
-          {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name} — {emp.department}</option>)}
-        </select>
-        {errors.employee_id && <p className="text-xs text-red-500">{errors.employee_id}</p>}
-      </div>
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Review Period</label>
-        <input type="text" placeholder="e.g. Q3 2024" value={period} onChange={(e) => setPeriod(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        {errors.period && <p className="text-xs text-red-500">{errors.period}</p>}
-      </div>
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Overall Score</label>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button key={star} type="button" onClick={() => setScore(star)}
-              onMouseEnter={() => setHoveredStar(star)} onMouseLeave={() => setHoveredStar(0)}
-              className="p-0.5 transition-transform hover:scale-110 focus:outline-none" aria-label={`Rate ${star} out of 5`}>
-              <Star size={28} className={star <= (hoveredStar || score) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} />
-            </button>
-          ))}
-          {score > 0 && <span className="ml-2 text-sm text-gray-500 self-center">{score} / 5</span>}
-        </div>
-        {errors.score && <p className="text-xs text-red-500">{errors.score}</p>}
-      </div>
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Strengths</label>
-        <textarea rows={4} placeholder="Describe key strengths and achievements..." value={strengths}
-          onChange={(e) => setStrengths(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        <div className="flex justify-between">
-          {errors.strengths ? <p className="text-xs text-red-500">{errors.strengths}</p> : <span />}
-          <span className="text-xs text-gray-400">{strengths.length} chars</span>
-        </div>
-      </div>
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Areas for Improvement</label>
-        <textarea rows={4} placeholder="Describe areas that need improvement and suggestions..." value={improvements}
-          onChange={(e) => setImprovements(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-        <div className="flex justify-between">
-          {errors.improvements ? <p className="text-xs text-red-500">{errors.improvements}</p> : <span />}
-          <span className="text-xs text-gray-400">{improvements.length} chars</span>
-        </div>
-      </div>
-      <button type="submit" disabled={loading}
-        className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm">
-        {loading && <Loader2 size={16} className="animate-spin" />}
-        {loading ? 'Submitting...' : 'Submit Review'}
+
+      {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors"
+      >
+        {loading ? 'Analyzing for bias…' : 'Submit Review'}
       </button>
     </form>
   );
