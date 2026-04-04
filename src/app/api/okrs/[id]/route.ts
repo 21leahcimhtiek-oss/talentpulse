@@ -95,7 +95,7 @@ export async function PATCH(
     }
 
     const newCurrent = validated.data.current ?? existing.current;
-    const newTarget = validated.data.target ?? existing.target;
+    const newTarget  = validated.data.target  ?? existing.target;
     const newDueDate = validated.data.due_date ?? existing.due_date;
     const computedStatus = validated.data.status ?? computeOkrStatus(newCurrent, newTarget, newDueDate);
 
