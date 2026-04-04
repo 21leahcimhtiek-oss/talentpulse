@@ -1,115 +1,77 @@
 'use client';
-import { useState } from 'react';
+
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard, Users, Target, ClipboardList,
-  MessageSquare, Brain, Activity, CreditCard,
-  Settings, LogOut, Zap, ChevronRight,
-} from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { cn } from '@/lib/utils';
-import type { UserRole } from '@/types';
+import { useRouter } from 'next/navigation';
 
-interface SidebarProps {
-  user: { email: string; role: UserRole };
-  org: { name: string; plan: string; slug: string };
-}
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  roles: UserRole[];
-}
-
-const planBadgeClass: Record<string, string> = {
-  starter: 'bg-gray-100 text-gray-600',
-  pro: 'bg-indigo-100 text-indigo-700',
-  enterprise: 'bg-purple-100 text-purple-700',
-};
-
-const navItems: NavItem[] = [
-  { label: 'Dashboard',    href: '/dashboard',    icon: <LayoutDashboard size={17} />, roles: ['admin', 'manager', 'employee'] },
-  { label: 'Employees',    href: '/employees',    icon: <Users size={17} />,           roles: ['admin', 'manager', 'employee'] },
-  { label: 'OKRs',         href: '/okrs',         icon: <Target size={17} />,          roles: ['admin', 'manager', 'employee'] },
-  { label: 'Reviews',      href: '/reviews',      icon: <ClipboardList size={17} />,   roles: ['admin', 'manager'] },
-  { label: '360 Feedback', href: '/feedback',     icon: <MessageSquare size={17} />,   roles: ['admin', 'manager', 'employee'] },
-  { label: 'Coaching',     href: '/coaching',     icon: <Brain size={17} />,           roles: ['admin', 'manager'] },
-  { label: 'Team Health',  href: '/team-health',  icon: <Activity size={17} />,        roles: ['admin', 'manager'] },
-  { label: 'Billing',      href: '/billing',      icon: <CreditCard size={17} />,      roles: ['admin'] },
-  { label: 'Settings',     href: '/settings',     icon: <Settings size={17} />,        roles: ['admin', 'manager', 'employee'] },
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: '🏠' },
+  { href: '/employees', label: 'Employees', icon: '👥' },
+  { href: '/okrs', label: 'OKRs', icon: '🎯' },
+  { href: '/reviews', label: 'Reviews', icon: '📋' },
+  { href: '/coaching', label: 'Coaching', icon: '🧠' },
+  { href: '/team-health', label: 'Team Health', icon: '❤️' },
+  { href: '/billing', label: 'Billing', icon: '💳' },
+  { href: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 
-export default function Sidebar({ user, org }: SidebarProps) {
+interface SidebarProps {
+  profile: { full_name?: string; email?: string; role?: string } | null;
+}
+
+export default function Sidebar({ profile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [signingOut, setSigningOut] = useState(false);
 
-  const visible = navItems.filter((item) => item.roles.includes(user.role));
-
-  async function handleSignOut() {
-    setSigningOut(true);
+  async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login');
+    router.refresh();
   }
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-white border-r border-gray-200 py-4 px-3">
-      {/* Org Header */}
-      <div className="px-2 mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <Zap size={15} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900 text-sm truncate">{org.name}</p>
-            <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded capitalize', planBadgeClass[org.plan] || planBadgeClass.starter)}>
-              {org.plan}
-            </span>
-          </div>
-        </div>
+    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen">
+      <div className="px-6 py-5 border-b border-slate-100">
+        <span className="text-lg font-bold text-primary-700">TalentPulse</span>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 space-y-0.5">
-        {visible.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        {navItems.map(item => {
+          const active = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group',
-                isActive
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              )}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                active
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
             >
-              <span className={cn('flex-shrink-0 transition-colors', isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600')}>
-                {item.icon}
-              </span>
-              <span className="flex-1 truncate">{item.label}</span>
-              {isActive && <ChevronRight size={14} className="text-indigo-400" />}
+              <span className="text-base">{item.icon}</span>
+              {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {/* User Footer */}
-      <div className="pt-3 border-t border-gray-200 mt-3 space-y-1">
-        <div className="px-3 py-2">
-          <p className="text-xs text-gray-500 truncate">{user.email}</p>
-          <p className="text-xs font-medium text-gray-700 capitalize">{user.role}</p>
+      <div className="px-4 py-4 border-t border-slate-100">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-700">
+            {profile?.full_name?.charAt(0) ?? '?'}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">{profile?.full_name ?? 'User'}</p>
+            <p className="text-xs text-slate-400 truncate">{profile?.role ?? 'member'}</p>
+          </div>
         </div>
         <button
-          onClick={handleSignOut}
-          disabled={signingOut}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+          onClick={handleLogout}
+          className="w-full text-left px-3 py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
-          <LogOut size={17} className="text-gray-400" />
-          {signingOut ? 'Signing out...' : 'Sign Out'}
+          Sign Out
         </button>
       </div>
     </aside>
