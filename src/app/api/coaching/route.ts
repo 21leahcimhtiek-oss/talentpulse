@@ -1,130 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import * as Sentry from '@sentry/nextjs';
 import { createClient } from '@/lib/supabase/server';
-import { rateLimit } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { generateCoaching } from '@/lib/openai/generate-coaching';
 
-const createCoachingSchema = z.object({
-  employee_id: z.string().uuid(),
-});
+export async function GET(req: NextRequest) {
+  const limited = await checkRateLimit(req, 'coaching', 50);
+  if (limited) return limited;
 
-export async function GET(request: NextRequest) {
-  try {
-    const ip = request.headers.get('x-forwarded-for') ?? 'anonymous';
-    const { success } = await rateLimit(`coaching:get:${ip}`);
-    if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const supabase = createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data, error } = await supabase
+    .from('coaching_suggestions')
+    .select('*, employee:profiles!employee_id(*)')
+    .eq('manager_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('org_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employee_id');
-
-    let query = supabase
-      .from('coaching_logs')
-      .select('*, employees(name, department)')
-      .eq('org_id', userData.org_id)
-      .order('created_at', { ascending: false });
-
-    if (employeeId) query = query.eq('employee_id', employeeId);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return NextResponse.json({ data });
-  } catch (error) {
-    Sentry.captureException(error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data });
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const ip = request.headers.get('x-forwarded-for') ?? 'anonymous';
-    // Strict 5/hour limit — configure coaching:post:strict:* in the rate-limit module
-    const { success } = await rateLimit(`coaching:post:strict:${ip}`);
-    if (!success) return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+export async function POST(req: NextRequest) {
+  const limited = await checkRateLimit(req, 'coaching-generate', 5);
+  if (limited) return limited;
 
-    const supabase = createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('org_id, role')
-      .eq('id', user.id)
-      .single();
+  const { employee_id } = await req.json();
+  if (!employee_id) return NextResponse.json({ error: 'employee_id required' }, { status: 400 });
 
-    if (!userData) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    if (!['admin', 'manager'].includes(userData.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+  const [
+    { data: profile },
+    { data: reviews },
+    { data: okrs },
+    { data: feedback },
+  ] = await Promise.all([
+    supabase.from('profiles').select('full_name').eq('id', employee_id).single(),
+    supabase.from('performance_reviews').select('*').eq('reviewee_id', employee_id).order('created_at', { ascending: false }).limit(3),
+    supabase.from('okrs').select('*').eq('employee_id', employee_id).order('created_at', { ascending: false }).limit(5),
+    supabase.from('peer_feedback').select('content, sentiment_label').eq('recipient_id', employee_id).order('created_at', { ascending: false }).limit(5),
+  ]);
 
-    const body = await request.json() as unknown;
-    const validated = createCoachingSchema.safeParse(body);
-    if (!validated.success) {
-      return NextResponse.json({ error: 'Validation failed', details: validated.error.flatten() }, { status: 400 });
-    }
+  const suggestions = await generateCoaching({
+    employeeName: (profile as { full_name?: string } | null)?.full_name ?? 'Employee',
+    recentReviews: (reviews ?? []) as never,
+    okrs: (okrs ?? []) as never,
+    peerFeedback: (feedback ?? []) as never,
+  });
 
-    const { employee_id } = validated.data;
+  const { data, error } = await supabase
+    .from('coaching_suggestions')
+    .insert({
+      employee_id,
+      manager_id: user.id,
+      suggestions: suggestions.suggestions,
+      generated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
-    const [reviewsResult, feedbackResult, okrsResult] = await Promise.all([
-      supabase
-        .from('reviews')
-        .select('score, strengths, improvements, period')
-        .eq('employee_id', employee_id)
-        .order('created_at', { ascending: false })
-        .limit(3),
-      supabase
-        .from('feedback')
-        .select('content, sentiment_score, created_at')
-        .eq('employee_id', employee_id)
-        .order('created_at', { ascending: false })
-        .limit(10),
-      supabase
-        .from('okrs')
-        .select('title, current, target, unit, status, due_date')
-        .eq('employee_id', employee_id)
-        .neq('status', 'achieved')
-        .order('due_date'),
-    ]);
-
-    if (reviewsResult.error) throw reviewsResult.error;
-    if (feedbackResult.error) throw feedbackResult.error;
-    if (okrsResult.error) throw okrsResult.error;
-
-    const coachingContent = await generateCoaching({
-      reviews:  reviewsResult.data ?? [],
-      feedback: feedbackResult.data ?? [],
-      okrs:     okrsResult.data ?? [],
-    });
-
-    const { data: coachingLog, error: insertError } = await supabase
-      .from('coaching_logs')
-      .insert({
-        employee_id,
-        org_id:       userData.org_id,
-        content:      coachingContent,
-        generated_by: user.id,
-      })
-      .select()
-      .single();
-
-    if (insertError) throw insertError;
-
-    return NextResponse.json({ data: coachingLog }, { status: 201 });
-  } catch (error) {
-    Sentry.captureException(error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ data }, { status: 201 });
 }
