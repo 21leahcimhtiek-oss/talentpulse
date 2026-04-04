@@ -1,52 +1,35 @@
 import Link from 'next/link';
-import { Building2, Calendar, User } from 'lucide-react';
-import { getInitials, formatDate } from '@/lib/utils';
 import type { Employee } from '@/types';
 
-interface EmployeeCardProps {
-  employee: Employee;
-  managerName?: string;
+interface Props {
+  employee: Employee & { profile?: { full_name?: string; email?: string; avatar_url?: string | null } };
 }
 
-export default function EmployeeCard({ employee, managerName }: EmployeeCardProps) {
-  const initials = getInitials(employee.name);
-  const colors = [
-    'bg-indigo-100 text-indigo-700',
-    'bg-purple-100 text-purple-700',
-    'bg-pink-100 text-pink-700',
-    'bg-blue-100 text-blue-700',
-    'bg-teal-100 text-teal-700',
-  ];
-  const colorIndex = employee.name.charCodeAt(0) % colors.length;
-  const avatarColor = colors[colorIndex];
+export default function EmployeeCard({ employee }: Props) {
+  const profile = employee.profile;
+  const initials = profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() ?? '?';
 
   return (
-    <Link
-      href={`/employees/${employee.id}`}
-      className="block bg-white rounded-xl border border-gray-200 p-5 hover:border-primary-300 hover:shadow-md transition-all group"
-    >
-      <div className="flex items-start gap-4">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ${avatarColor}`}>
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
-            {employee.name}
-          </h3>
-          <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-500">
-            <Building2 size={13} />
-            <span className="truncate">{employee.department || 'No department'}</span>
-          </div>
-          {managerName && (
-            <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-500">
-              <User size={13} />
-              <span className="truncate">Reports to {managerName}</span>
+    <Link href={`/employees/${employee.id}`} className="block">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 hover:border-primary-300 hover:shadow-sm transition-all cursor-pointer">
+        <div className="flex items-center gap-4">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.full_name ?? ''} className="w-12 h-12 rounded-full object-cover" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700">
+              {initials}
             </div>
           )}
-          <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-400">
-            <Calendar size={13} />
-            <span>Since {formatDate(employee.start_date)}</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 truncate">{profile?.full_name ?? '—'}</p>
+            <p className="text-sm text-slate-500 truncate">{employee.job_title ?? '—'}</p>
+            <p className="text-xs text-slate-400 truncate">{employee.department ?? '—'}</p>
           </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${employee.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+            {employee.status}
+          </span>
         </div>
       </div>
     </Link>
