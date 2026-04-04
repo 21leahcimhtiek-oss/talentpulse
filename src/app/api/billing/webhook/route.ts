@@ -1,87 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
+import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe/client';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
-import type Stripe from 'stripe';
+import { createServiceClient } from '@/lib/supabase/server';
+import Stripe from 'stripe';
 
-const serviceClient = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = 'edge';
 
-export async function POST(request: NextRequest) {
-  const body      = await request.text();
-  const signature = request.headers.get('stripe-signature');
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+  const sig = headers().get('stripe-signature');
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!signature) {
-    return NextResponse.json({ error: 'No signature' }, { status: 400 });
+  if (!sig || !webhookSecret) {
+    return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
   }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Webhook signature verification failed';
-    Sentry.captureException(err, { tags: { source: 'stripe_webhook' } });
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: `Webhook error: ${(err as Error).message}` }, { status: 400 });
   }
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.CheckoutSession;
-        const orgId   = session.metadata?.org_id;
-        const plan    = session.metadata?.plan;
-        if (orgId && plan) {
-          await serviceClient
-            .from('orgs')
-            .update({
-              plan,
-              stripe_subscription_id: session.subscription as string,
-            })
-            .eq('id', orgId);
-        }
-        break;
+  const supabase = createServiceClient();
+
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const { supabase_user_id, plan, billing } = session.metadata ?? {};
+      if (supabase_user_id && plan) {
+        await supabase.from('subscriptions').upsert({
+          user_id: supabase_user_id,
+          stripe_customer_id: session.customer as string,
+          stripe_subscription_id: session.subscription as string,
+          plan_tier: plan,
+          billing_period: billing,
+          status: 'active',
+        }, { onConflict: 'user_id' });
       }
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const orgId        = subscription.metadata?.org_id;
-        if (orgId) {
-          const plan =
-            subscription.status === 'active'
-              ? (subscription.metadata?.plan ?? 'starter')
-              : 'starter';
-          await serviceClient
-            .from('orgs')
-            .update({ plan, stripe_subscription_id: subscription.id })
-            .eq('id', orgId);
-        }
-        break;
-      }
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const orgId        = subscription.metadata?.org_id;
-        if (orgId) {
-          await serviceClient
-            .from('orgs')
-            .update({ plan: 'starter', stripe_subscription_id: null })
-            .eq('id', orgId);
-        }
-        break;
-      }
-      default:
-        break;
+      break;
     }
-
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    Sentry.captureException(error, { tags: { source: 'stripe_webhook', event_type: event.type } });
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
+    case 'customer.subscription.updated': {
+      const sub = event.data.object as Stripe.Subscription;
+      await supabase.from('subscriptions').update({
+        status: sub.status,
+        current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+      }).eq('stripe_subscription_id', sub.id);
+      break;
+    }
+    case 'customer.subscription.deleted': {
+      const sub = event.data.object as Stripe.Subscription;
+      await supabase.from('subscriptions').update({ status: 'canceled' }).eq('stripe_subscription_id', sub.id);
+      break;
+    }
   }
-}
 
-export const config = { api: { bodyParser: false } };
+  return NextResponse.json({ received: true });
+}
