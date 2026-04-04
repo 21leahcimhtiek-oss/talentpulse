@@ -1,123 +1,77 @@
-import { createClient } from "@/lib/supabase/server";
-import { TrendingUp, Users, ClipboardList, Activity, AlertTriangle } from "lucide-react";
-import type { Metadata } from "next";
+import { createClient } from '@/lib/supabase/server';
+import { getHealthScoreColor, getHealthScoreLabel } from '@/lib/utils';
+import AnalyticsChart from '@/components/AnalyticsChart';
+import TeamHealthGauge from '@/components/TeamHealthGauge';
+import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
   const [
+    { data: profile },
     { count: employeeCount },
     { data: okrs },
-    { count: reviewCount },
-    { data: teamHealth },
+    { data: healthScores },
+    { data: pendingReviews },
   ] = await Promise.all([
-    supabase.from("employees").select("*", { count: "exact", head: true }),
-    supabase.from("okrs").select("status, current, target"),
-    supabase
-      .from("reviews")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-    supabase
-      .from("team_health")
-      .select("score")
-      .gte("measured_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('employees').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('okrs').select('progress, status').limit(50),
+    supabase.from('team_health_scores').select('*').order('calculated_at', { ascending: false }).limit(30),
+    supabase.from('performance_reviews').select('*', { count: 'exact', head: true }).is('submitted_at', null),
   ]);
 
-  const totalOkrs = okrs?.length ?? 0;
-  const onTrackOkrs = okrs?.filter((o) => o.status === "on_track" || o.status === "achieved").length ?? 0;
-  const atRiskOkrs = okrs?.filter((o) => o.status === "at_risk").length ?? 0;
-  const okrOnTrackPct = totalOkrs > 0 ? Math.round((onTrackOkrs / totalOkrs) * 100) : 0;
-  const avgHealthScore =
-    teamHealth && teamHealth.length > 0
-      ? Math.round(teamHealth.reduce((s, t) => s + t.score, 0) / teamHealth.length)
-      : 0;
+  const avgOKRProgress = okrs?.length
+    ? Math.round(okrs.reduce((s, o) => s + o.progress, 0) / okrs.length)
+    : 0;
+  const atRiskOKRs = okrs?.filter(o => o.status === 'at_risk').length ?? 0;
+  const latestHealth = healthScores?.[0]?.score ?? 0;
 
-  const stats = [
-    {
-      label: "Total Employees",
-      value: employeeCount ?? 0,
-      icon: Users,
-      color: "text-blue-600 bg-blue-100",
-    },
-    {
-      label: "OKRs On Track",
-      value: `${okrOnTrackPct}%`,
-      icon: TrendingUp,
-      color: "text-green-600 bg-green-100",
-      sub: `${atRiskOkrs} at risk`,
-    },
-    {
-      label: "Reviews (30d)",
-      value: reviewCount ?? 0,
-      icon: ClipboardList,
-      color: "text-purple-600 bg-purple-100",
-    },
-    {
-      label: "Avg Team Health",
-      value: avgHealthScore > 0 ? `${avgHealthScore}/100` : "—",
-      icon: Activity,
-      color: "text-indigo-600 bg-indigo-100",
-    },
+  const kpis = [
+    { label: 'Active Employees', value: employeeCount ?? 0, icon: '👥', color: 'bg-blue-50 text-blue-700' },
+    { label: 'Avg OKR Progress', value: `${avgOKRProgress}%`, icon: '🎯', color: 'bg-indigo-50 text-indigo-700' },
+    { label: 'At-Risk OKRs', value: atRiskOKRs, icon: '⚠️', color: 'bg-amber-50 text-amber-700' },
+    { label: 'Pending Reviews', value: pendingReviews ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-700' },
   ];
 
-  const atRiskList = okrs
-    ?.filter((o) => o.status === "at_risk")
-    .slice(0, 5) ?? [];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
-        <p className="text-gray-500 mt-1">Organization-wide performance snapshot</p>
+        <h1 className="text-2xl font-bold text-slate-900">
+          Good morning{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋
+        </h1>
+        <p className="text-slate-500 mt-1">Here is your team performance snapshot.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500">{stat.label}</span>
-              <span className={`p-2 rounded-lg ${stat.color}`}>
-                <stat.icon size={18} />
-              </span>
+        {kpis.map(kpi => (
+          <div key={kpi.label} className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-xl mb-3 ${kpi.color}`}>
+              {kpi.icon}
             </div>
-            <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-            {stat.sub && <div className="text-xs text-gray-400 mt-1">{stat.sub}</div>}
+            <p className="text-2xl font-bold text-slate-900">{kpi.value}</p>
+            <p className="text-sm text-slate-500 mt-0.5">{kpi.label}</p>
           </div>
         ))}
       </div>
 
-      {atRiskList.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle size={18} className="text-yellow-500" />
-            <h2 className="font-semibold text-gray-900">At-Risk OKRs</h2>
-            <span className="ml-auto text-xs text-gray-400">{atRiskList.length} items</span>
-          </div>
-          <div className="space-y-3">
-            {atRiskList.map((okr, i) => {
-              const pct = okr.target > 0 ? Math.round((okr.current / okr.target) * 100) : 0;
-              return (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700 font-medium">OKR</span>
-                      <span className="text-yellow-600">{pct}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div
-                        className="bg-yellow-400 h-2 rounded-full"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Team Health Trend</h2>
+          <AnalyticsChart data={healthScores ?? []} dataKey="score" xKey="calculated_at" color="#6366f1" />
         </div>
-      )}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center justify-center">
+          <h2 className="text-base font-semibold text-slate-900 mb-4 self-start">Current Health Score</h2>
+          <TeamHealthGauge score={latestHealth} />
+          <p className={`mt-3 font-semibold text-lg ${getHealthScoreColor(latestHealth)}`}>
+            {getHealthScoreLabel(latestHealth)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
