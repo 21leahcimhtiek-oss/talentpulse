@@ -97,39 +97,38 @@ export async function POST(request: NextRequest) {
             .in('employee_id', empIds),
         ]);
 
-        const okrs = okrsRes.data ?? [];
+        const okrs         = okrsRes.data ?? [];
         const feedbackItems = feedbackRes.data ?? [];
-        const reviewItems = reviewsRes.data ?? [];
+        const reviewItems  = reviewsRes.data ?? [];
 
         const okrScore =
           okrs.length > 0
             ? (okrs.reduce((sum, o) => sum + (o.target > 0 ? Math.min(o.current / o.target, 1) : 0), 0) /
-                okrs.length) *
-              100
+                okrs.length) * 100
             : 0;
 
         const feedbackScore =
           feedbackItems.length > 0
             ? (feedbackItems.reduce((sum, f) => sum + (f.sentiment_score as number), 0) /
-                feedbackItems.length) *
-              100
+                feedbackItems.length) * 100
             : 0;
 
         const reviewScore =
           reviewItems.length > 0
-            ? (reviewItems.reduce((sum, r) => sum + (r.score as number), 0) / reviewItems.length / 5) * 100
+            ? (reviewItems.reduce((sum, r) => sum + (r.score as number), 0) /
+                reviewItems.length / 5) * 100
             : 0;
 
         const composite = okrScore * 0.4 + feedbackScore * 0.3 + reviewScore * 0.3;
 
         upserts.push({
-          org_id: org.id,
-          team_id: department,
-          okr_score: Math.round(okrScore * 100) / 100,
+          org_id:         org.id,
+          team_id:        department,
+          okr_score:      Math.round(okrScore      * 100) / 100,
           feedback_score: Math.round(feedbackScore * 100) / 100,
-          review_score: Math.round(reviewScore * 100) / 100,
-          composite: Math.round(composite * 100) / 100,
-          calculated_at: new Date().toISOString(),
+          review_score:   Math.round(reviewScore   * 100) / 100,
+          composite:      Math.round(composite     * 100) / 100,
+          calculated_at:  new Date().toISOString(),
         });
       }
 
