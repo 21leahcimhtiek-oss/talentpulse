@@ -1,123 +1,135 @@
-export type Plan = 'starter' | 'pro' | 'enterprise';
 export type UserRole = 'admin' | 'manager' | 'employee';
-export type OKRStatus = 'on_track' | 'at_risk' | 'missed' | 'achieved';
 
-export interface Org {
+export interface Profile {
   id: string;
-  name: string;
-  slug: string;
-  plan: Plan;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  created_at: string;
-}
-
-export interface User {
-  id: string;
-  org_id: string;
   email: string;
+  full_name: string;
+  avatar_url: string | null;
   role: UserRole;
+  org_id: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Employee {
   id: string;
+  profile_id: string;
   org_id: string;
-  user_id: string | null;
-  name: string;
   department: string;
+  job_title: string;
   manager_id: string | null;
-  start_date: string;
+  hire_date: string;
+  status: 'active' | 'inactive';
   created_at: string;
+  profile?: Profile;
+  manager?: Profile;
+}
+
+export interface KeyResult {
+  id: string;
+  title: string;
+  progress: number;
+  target: number;
+  current: number;
+  unit: string;
 }
 
 export interface OKR {
   id: string;
-  org_id: string;
   employee_id: string;
+  org_id: string;
   title: string;
-  description: string;
-  target: number;
-  current: number;
-  unit: string;
+  description: string | null;
+  key_results: KeyResult[];
+  progress: number;
+  status: 'on_track' | 'at_risk' | 'completed' | 'cancelled';
   due_date: string;
-  status: OKRStatus;
   created_at: string;
+  updated_at: string;
+  employee?: Profile;
 }
 
-export interface Review {
+export interface BiasFlag {
+  type: string;
+  text: string;
+  suggestion: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+export interface PerformanceReview {
   id: string;
-  org_id: string;
-  employee_id: string;
   reviewer_id: string;
-  period: string;
-  score: number;
+  reviewee_id: string;
+  org_id: string;
+  cycle: string;
+  overall_score: number;
   strengths: string;
   improvements: string;
-  ai_bias_flag: boolean;
+  goals: string;
+  bias_flags: BiasFlag[];
+  submitted_at: string | null;
   created_at: string;
+  reviewer?: Profile;
+  reviewee?: Profile;
 }
 
-export interface Feedback360 {
+export interface PeerFeedback {
   id: string;
+  giver_id: string;
+  receiver_id: string;
   org_id: string;
-  employee_id: string;
-  from_user_id: string;
   content: string;
-  sentiment: number;
+  sentiment_score: number | null;
+  sentiment_label: 'positive' | 'neutral' | 'negative' | null;
   created_at: string;
+  giver?: Profile;
+  receiver?: Profile;
 }
 
-export interface CoachingLog {
+export interface CoachingSuggestion {
   id: string;
-  org_id: string;
-  employee_id: string;
   manager_id: string;
-  suggestion_md: string;
-  ai_generated: boolean;
-  acknowledged: boolean;
+  employee_id: string;
+  org_id: string;
+  week_start: string;
+  suggestions: string[];
+  context_summary: string;
   created_at: string;
+  employee?: Profile;
 }
 
-export interface TeamHealth {
+export interface TeamHealthScore {
   id: string;
   org_id: string;
-  team_id: string;
+  manager_id: string | null;
   score: number;
-  factors: Record<string, number>;
-  measured_at: string;
+  engagement_score: number;
+  okr_attainment: number;
+  feedback_sentiment: number;
+  calculated_at: string;
 }
 
-export interface Department {
+export interface Subscription {
   id: string;
   org_id: string;
-  name: string;
-  head_id: string | null;
+  stripe_customer_id: string;
+  stripe_subscription_id: string | null;
+  plan_tier: 'starter' | 'pro' | 'enterprise';
+  status: 'active' | 'past_due' | 'cancelled' | 'trialing';
+  current_period_end: string | null;
   created_at: string;
+  updated_at: string;
 }
 
-export interface ApiError {
-  error: string;
-  details?: unknown;
+export interface ApiResponse<T = unknown> {
+  data?: T;
+  error?: string;
+  message?: string;
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  count: number;
+  total: number;
   page: number;
   pageSize: number;
-}
-
-export interface BiasAnalysis {
-  hasBias: boolean;
-  biasTypes: string[];
-  confidence: number;
-  explanation: string;
-  suggestedRevision: string | null;
-}
-
-export interface SentimentResult {
-  score: number;
-  label: 'positive' | 'neutral' | 'negative';
-  confidence: number;
 }
