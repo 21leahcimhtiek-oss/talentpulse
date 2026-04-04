@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       .from('feedback')
       .insert({
         ...validated.data,
-        org_id: userData.org_id,
+        org_id:    userData.org_id,
         author_id: user.id,
       })
       .select()
