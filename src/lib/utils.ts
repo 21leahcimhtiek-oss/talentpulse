@@ -1,82 +1,50 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-import type { OKRStatus } from "@/types";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
-export function getOKRStatusColor(status: OKRStatus): string {
-  const colors: Record<OKRStatus, string> = {
-    on_track: "text-green-700 bg-green-100",
-    at_risk: "text-yellow-700 bg-yellow-100",
-    missed: "text-red-700 bg-red-100",
-    achieved: "text-blue-700 bg-blue-100",
-  };
-  return colors[status];
+export function formatDate(dateString: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+  }).format(new Date(dateString));
 }
 
-export function getOKRProgressPercent(current: number, target: number): number {
-  if (target === 0) return 0;
-  return Math.min(100, Math.round((current / target) * 100));
+export function formatRelativeTime(dateString: string): string {
+  const diffDays = Math.floor((Date.now() - new Date(dateString).getTime()) / 86_400_000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return formatDate(dateString);
 }
 
-export function getSentimentLabel(score: number): string {
-  if (score > 0.3) return "Positive";
-  if (score < -0.3) return "Negative";
-  return "Neutral";
+export function calculateOKRProgress(keyResults: Array<{ progress: number }>): number {
+  if (!keyResults.length) return 0;
+  return Math.round(keyResults.reduce((s, kr) => s + kr.progress, 0) / keyResults.length);
 }
 
-export function getSentimentColor(score: number): string {
-  if (score > 0.3) return "text-green-600";
-  if (score < -0.3) return "text-red-600";
-  return "text-gray-600";
+export function getHealthScoreColor(score: number): string {
+  if (score >= 80) return 'text-green-600';
+  if (score >= 60) return 'text-yellow-600';
+  return 'text-red-600';
 }
 
-export function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+export function getHealthScoreLabel(score: number): string {
+  if (score >= 80) return 'Healthy';
+  if (score >= 60) return 'Moderate';
+  return 'At Risk';
 }
 
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+export function truncate(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, max) + '...';
 }
 
-export function calculateTenure(startDate: string): string {
-  const start = new Date(startDate);
-  const now = new Date();
-  const months = Math.floor(
-    (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)
-  );
-  if (months < 1) return "Less than a month";
-  if (months === 1) return "1 month";
-  if (months < 12) return `${months} months`;
-  const years = Math.floor(months / 12);
-  const remainingMonths = months % 12;
-  if (remainingMonths === 0) return `${years} year${years > 1 ? "s" : ""}`;
-  return `${years}y ${remainingMonths}m`;
+export function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
 }
