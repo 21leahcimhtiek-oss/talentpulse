@@ -1,103 +1,51 @@
-import { createClient } from "@/lib/supabase/server";
-import OKRCard from "@/components/OKRCard";
-import { Target } from "lucide-react";
-import Link from "next/link";
-import type { Metadata } from "next";
-import type { OKR, OKRStatus } from "@/types";
+import { createClient } from '@/lib/supabase/server';
+import OKRCard from '@/components/OKRCard';
+import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: "OKRs" };
+export const metadata: Metadata = { title: 'OKRs' };
 
-const STATUS_FILTERS: { label: string; value: string }[] = [
-  { label: "All", value: "all" },
-  { label: "On Track", value: "on_track" },
-  { label: "At Risk", value: "at_risk" },
-  { label: "Missed", value: "missed" },
-  { label: "Achieved", value: "achieved" },
-];
-
-export default async function OKRsPage({
-  searchParams,
-}: {
-  searchParams: { status?: string };
-}) {
+export default async function OKRsPage() {
   const supabase = createClient();
-  const status = searchParams.status;
+  const { data: { user } } = await supabase.auth.getUser();
 
-  let query = supabase
-    .from("okrs")
-    .select("*, employees(name)")
-    .order("due_date");
+  const { data: okrs } = await supabase
+    .from('okrs')
+    .select('*, employee:profiles(*)')
+    .order('created_at', { ascending: false });
 
-  if (status && status !== "all") {
-    query = query.eq("status", status as OKRStatus);
-  }
-
-  const { data: okrs } = await query;
-
-  const total = okrs?.length ?? 0;
-  const onTrack = okrs?.filter((o) => o.status === "on_track").length ?? 0;
-  const atRisk = okrs?.filter((o) => o.status === "at_risk").length ?? 0;
-  const achieved = okrs?.filter((o) => o.status === "achieved").length ?? 0;
+  const onTrack = okrs?.filter(o => o.status === 'on_track').length ?? 0;
+  const atRisk = okrs?.filter(o => o.status === 'at_risk').length ?? 0;
+  const completed = okrs?.filter(o => o.status === 'completed').length ?? 0;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">OKRs</h1>
-          <p className="text-gray-500 mt-1">{total} objectives</p>
+          <h1 className="text-2xl font-bold text-slate-900">OKRs</h1>
+          <p className="text-slate-500 mt-1">{okrs?.length ?? 0} objectives tracked</p>
         </div>
+        <a href="/api/okrs" className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+          + New OKR
+        </a>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total", value: total, color: "text-gray-700" },
-          { label: "On Track", value: onTrack, color: "text-green-600" },
-          { label: "At Risk", value: atRisk, color: "text-yellow-600" },
-          { label: "Achieved", value: achieved, color: "text-blue-600" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-400 mt-1">{s.label}</div>
+          { label: 'On Track', count: onTrack, color: 'bg-green-50 text-green-700' },
+          { label: 'At Risk', count: atRisk, color: 'bg-amber-50 text-amber-700' },
+          { label: 'Completed', count: completed, color: 'bg-blue-50 text-blue-700' },
+        ].map(s => (
+          <div key={s.label} className={`rounded-xl p-4 ${s.color}`}>
+            <p className="text-2xl font-bold">{s.count}</p>
+            <p className="text-sm font-medium mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {STATUS_FILTERS.map((f) => (
-          <Link
-            key={f.value}
-            href={f.value === "all" ? "/okrs" : `/okrs?status=${f.value}`}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              (!status && f.value === "all") || status === f.value
-                ? "bg-primary-100 text-primary-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {f.label}
-          </Link>
-        ))}
+      <div className="space-y-3">
+        {okrs?.map(okr => <OKRCard key={okr.id} okr={okr as never} showEmployee />)}
+        {!okrs?.length && <div className="text-center py-16 text-slate-400">No OKRs yet.</div>}
       </div>
-
-      {okrs && okrs.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {okrs.map((okr) => (
-            <OKRCard
-              key={okr.id}
-              okr={okr as OKR}
-              employeeName={(okr.employees as { name: string } | null)?.name}
-              showEmployee
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-16 text-gray-400">
-          <Target size={48} className="mx-auto mb-4 opacity-40" />
-          <p className="font-medium">No OKRs found</p>
-          <p className="text-sm mt-1">
-            {status ? "Try a different status filter" : "Create OKRs for your team to get started"}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
