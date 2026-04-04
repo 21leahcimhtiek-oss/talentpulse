@@ -1,26 +1,24 @@
-import ReviewForm from "@/components/ReviewForm";
-import { createClient } from "@/lib/supabase/server";
-import type { Metadata } from "next";
-import type { Employee } from "@/types";
+import ReviewForm from '@/components/ReviewForm';
+import { createClient } from '@/lib/supabase/server';
+import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: "New Review" };
+export const metadata: Metadata = { title: 'New Review' };
 
 export default async function NewReviewPage() {
   const supabase = createClient();
   const { data: employees } = await supabase
-    .from("employees")
-    .select("id, name, department")
-    .order("name");
+    .from('profiles')
+    .select('id, full_name, email')
+    .neq('role', 'admin')
+    .order('full_name');
 
   return (
-    <div className="max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">New Performance Review</h1>
-        <p className="text-gray-500 mt-1">
-          AI bias detection runs automatically after submission
-        </p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">New Performance Review</h1>
+        <p className="text-slate-500 mt-1">AI bias detection runs automatically before you submit.</p>
       </div>
-      <ReviewForm employees={(employees ?? []) as Employee[]} />
+      <ReviewForm employees={employees ?? []} />
     </div>
   );
 }
