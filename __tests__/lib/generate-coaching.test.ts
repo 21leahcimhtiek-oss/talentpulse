@@ -13,11 +13,7 @@ const mockCreate = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   MockOpenAI.mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: mockCreate,
-      },
-    },
+    chat: { completions: { create: mockCreate } },
   } as any));
 });
 
@@ -68,9 +64,7 @@ const makeOKR = (status: string, overrides: Partial<OKR> = {}): OKR => ({
 });
 
 function makeOpenAIResponse(content: string) {
-  return {
-    choices: [{ message: { content } }],
-  };
+  return { choices: [{ message: { content } }] };
 }
 
 describe('generateCoaching', () => {
