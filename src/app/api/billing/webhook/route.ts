@@ -10,7 +10,7 @@ const serviceClient = createServiceClient(
 );
 
 export async function POST(request: NextRequest) {
-  const body = await request.text();
+  const body      = await request.text();
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.CheckoutSession;
-        const orgId = session.metadata?.org_id;
-        const plan = session.metadata?.plan;
+        const orgId   = session.metadata?.org_id;
+        const plan    = session.metadata?.plan;
         if (orgId && plan) {
           await serviceClient
             .from('orgs')
@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
       }
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
-        const orgId = subscription.metadata?.org_id;
-        const status = subscription.status;
+        const orgId        = subscription.metadata?.org_id;
         if (orgId) {
-          const plan = status === 'active'
-            ? (subscription.metadata?.plan ?? 'starter')
-            : 'starter';
+          const plan =
+            subscription.status === 'active'
+              ? (subscription.metadata?.plan ?? 'starter')
+              : 'starter';
           await serviceClient
             .from('orgs')
             .update({ plan, stripe_subscription_id: subscription.id })
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       }
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        const orgId = subscription.metadata?.org_id;
+        const orgId        = subscription.metadata?.org_id;
         if (orgId) {
           await serviceClient
             .from('orgs')
