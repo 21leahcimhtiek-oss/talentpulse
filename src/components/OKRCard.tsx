@@ -1,59 +1,35 @@
-import { Calendar, AlertCircle, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
-import OKRProgress from './OKRProgress';
-import { cn, getOKRStatusColor, getOKRProgressPercent, formatDate } from '@/lib/utils';
 import type { OKR } from '@/types';
+import OKRProgress from './OKRProgress';
 
-interface OKRCardProps {
-  okr: OKR;
-  employeeName?: string;
+const statusColors: Record<string, string> = {
+  on_track: 'bg-green-100 text-green-700',
+  at_risk: 'bg-amber-100 text-amber-700',
+  completed: 'bg-blue-100 text-blue-700',
+  draft: 'bg-slate-100 text-slate-500',
+};
+
+interface Props {
+  okr: OKR & { employee?: { full_name?: string } };
   showEmployee?: boolean;
 }
 
-const statusIcons = {
-  on_track: <TrendingUp size={14} className="text-green-600" />,
-  at_risk: <AlertCircle size={14} className="text-yellow-600" />,
-  missed: <TrendingDown size={14} className="text-red-600" />,
-  achieved: <CheckCircle2 size={14} className="text-blue-600" />,
-};
-
-const statusLabels = {
-  on_track: 'On Track',
-  at_risk: 'At Risk',
-  missed: 'Missed',
-  achieved: 'Achieved',
-};
-
-export default function OKRCard({ okr, employeeName, showEmployee = false }: OKRCardProps) {
-  const percent = getOKRProgressPercent(okr.current, okr.target);
-  const isOverdue = new Date(okr.due_date) < new Date() && okr.status !== 'achieved';
-
+export default function OKRCard({ okr, showEmployee }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex-1 min-w-0">
-          {showEmployee && employeeName && (
-            <p className="text-xs text-gray-500 mb-0.5">{employeeName}</p>
+    <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-slate-900">{okr.title}</p>
+          {showEmployee && okr.employee && (
+            <p className="text-xs text-slate-400 mt-0.5">{okr.employee.full_name}</p>
           )}
-          <h3 className="font-semibold text-gray-900 text-sm leading-snug">{okr.title}</h3>
-          {okr.description && (
-            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{okr.description}</p>
-          )}
+          {okr.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{okr.description}</p>}
         </div>
-        <span className={cn('flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap', getOKRStatusColor(okr.status))}>
-          {statusIcons[okr.status]}
-          {statusLabels[okr.status]}
+        <span className={`shrink-0 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[okr.status] ?? statusColors.draft}`}>
+          {okr.status.replace('_', ' ')}
         </span>
       </div>
-
-      <OKRProgress current={okr.current} target={okr.target} unit={okr.unit} />
-
-      <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-        <span>{percent}% complete</span>
-        <div className={cn('flex items-center gap-1', isOverdue && 'text-red-500')}>
-          <Calendar size={12} />
-          <span>{isOverdue ? 'Overdue: ' : 'Due: '}{formatDate(okr.due_date)}</span>
-        </div>
-      </div>
+      <OKRProgress progress={okr.progress ?? 0} />
+      <div className="mt-2 text-right text-xs text-slate-400">{okr.progress ?? 0}%</div>
     </div>
   );
 }
