@@ -1,124 +1,98 @@
-import { createClient } from '@/lib/supabase/server';
-import Link from 'next/link';
-import { Users, Plus } from 'lucide-react';
+import { createClient } from "@/lib/supabase/server";
+import EmployeeCard from "@/components/EmployeeCard";
+import { Users, UserPlus } from "lucide-react";
+import Link from "next/link";
+import type { Metadata } from "next";
+import type { Employee } from "@/types";
 
-export const metadata = { title: 'Employees' };
+export const metadata: Metadata = { title: "Employees" };
 
-type Employee = {
-  id: string;
-  full_name: string;
-  email: string;
-  department: string | null;
-  role: string;
-};
-
-function EmployeeCard({ emp }: { emp: Employee }) {
-  const initials = emp.full_name
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) ?? '??';
-
-  const departmentColor = emp.department
-    ? 'bg-gray-100 text-gray-600'
-    : 'bg-gray-50 text-gray-400';
-
-  return (
-    <Link
-      href={`/employees/${emp.id}`}
-      className="bg-white rounded-xl border border-gray-200 p-5 hover:border-indigo-300 hover:shadow-sm transition-all block group"
-    >
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm flex-shrink-0 group-hover:bg-indigo-200 transition-colors">
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <p className="font-medium text-gray-900 text-sm truncate">{emp.full_name}</p>
-          <p className="text-xs text-gray-400 truncate">{emp.email}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        {emp.department && (
-          <span className={`text-xs px-2 py-0.5 rounded ${departmentColor}`}>
-            {emp.department}
-          </span>
-        )}
-        <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded capitalize">
-          {emp.role}
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-export default async function EmployeesPage() {
+export default async function EmployeesPage({
+  searchParams,
+}: {
+  searchParams: { department?: string; search?: string };
+}) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  let query = supabase.from("employees").select("*").order("name");
+  if (searchParams.department) query = query.eq("department", searchParams.department);
+  if (searchParams.search) query = query.ilike("name", `%${searchParams.search}%`);
+
+  const { data: employees } = await query;
+  const { data: depts } = await supabase
+    .from("employees")
+    .select("department")
+    .neq("department", "");
+
+  const uniqueDepts = [...new Set((depts ?? []).map((d) => d.department).filter(Boolean))].sort();
 
   const { data: userData } = await supabase
-    .from('users')
-    .select('org_id, role')
-    .eq('id', user!.id)
+    .from("users")
+    .select("role")
+    .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
     .single();
 
-  const { data: employees } = await supabase
-    .from('users')
-    .select('id, full_name, email, department, role')
-    .eq('org_id', userData?.org_id)
-    .order('full_name');
-
-  const canManage = userData?.role === 'admin' || userData?.role === 'manager';
-
-  const departments = [
-    ...new Set(
-      employees?.map((e) => e.department).filter(Boolean) ?? [],
-    ),
-  ] as string[];
+  const canAdd = userData?.role === "admin" || userData?.role === "manager";
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-gray-500 mt-1">
-            {employees?.length ?? 0} team member{employees?.length !== 1 ? 's' : ''}
-            {departments.length > 0 && ` across ${departments.length} department${departments.length !== 1 ? 's' : ''}`}
-          </p>
+          <p className="text-gray-500 mt-1">{employees?.length ?? 0} team members</p>
         </div>
-        {canManage && (
+        {canAdd && (
           <Link
             href="/employees/new"
-            className="flex items-center gap-2 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            <Plus size={16} /> Add Employee
+            <UserPlus size={16} />
+            Add Employee
           </Link>
         )}
       </div>
 
-      {!employees || employees.length === 0 ? (
-        <div className="text-center py-24 bg-white rounded-xl border border-dashed border-gray-200">
-          <Users size={44} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 font-medium text-lg">No employees yet</p>
-          <p className="text-gray-400 text-sm mt-1 mb-5">
-            Add your first team member to start tracking performance.
-          </p>
-          {canManage && (
-            <Link
-              href="/employees/new"
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Plus size={16} /> Add Employee
-            </Link>
-          )}
+      <div className="flex gap-3 flex-wrap">
+        <Link
+          href="/employees"
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            !searchParams.department
+              ? "bg-primary-100 text-primary-700"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          All
+        </Link>
+        {uniqueDepts.map((dept) => (
+          <Link
+            key={dept}
+            href={`/employees?department=${encodeURIComponent(dept)}`}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              searchParams.department === dept
+                ? "bg-primary-100 text-primary-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {dept}
+          </Link>
+        ))}
+      </div>
+
+      {employees && employees.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {employees.map((employee) => (
+            <EmployeeCard key={employee.id} employee={employee as Employee} />
+          ))}
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {employees.map((emp) => (
-            <EmployeeCard key={emp.id} emp={emp} />
-          ))}
+        <div className="text-center py-16 text-gray-400">
+          <Users size={48} className="mx-auto mb-4 opacity-40" />
+          <p className="font-medium">No employees found</p>
+          <p className="text-sm mt-1">
+            {searchParams.search || searchParams.department
+              ? "Try adjusting your filters"
+              : "Add your first employee to get started"}
+          </p>
         </div>
       )}
     </div>
