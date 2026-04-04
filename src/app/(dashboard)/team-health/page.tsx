@@ -1,64 +1,55 @@
-import { createClient } from "@/lib/supabase/server";
-import TeamHealthGauge from "@/components/TeamHealthGauge";
-import { Activity } from "lucide-react";
-import type { Metadata } from "next";
+import { createClient } from '@/lib/supabase/server';
+import TeamHealthGauge from '@/components/TeamHealthGauge';
+import AnalyticsChart from '@/components/AnalyticsChart';
+import { getHealthScoreColor, getHealthScoreLabel, formatDate } from '@/lib/utils';
+import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: "Team Health" };
+export const metadata: Metadata = { title: 'Team Health' };
 
 export default async function TeamHealthPage() {
   const supabase = createClient();
+  const { data: scores } = await supabase
+    .from('team_health_scores')
+    .select('*')
+    .order('calculated_at', { ascending: false })
+    .limit(30);
 
-  const { data: healthRecords } = await supabase
-    .from("team_health")
-    .select("*")
-    .gte("measured_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-    .order("measured_at", { ascending: false });
-
-  const latestByTeam = (healthRecords ?? []).reduce<Record<string, typeof healthRecords extends null ? never : NonNullable<typeof healthRecords>[0]>>((acc, record) => {
-    if (!acc[record.team_id]) acc[record.team_id] = record;
-    return acc;
-  }, {});
-
-  const teams = Object.values(latestByTeam);
-
-  const orgAvg =
-    teams.length > 0
-      ? Math.round(teams.reduce((s, t) => s + t.score, 0) / teams.length)
-      : 0;
+  const latest = scores?.[0];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Health</h1>
-          <p className="text-gray-500 mt-1">Daily composite scores across all departments</p>
-        </div>
-        {orgAvg > 0 && (
-          <div className="text-right">
-            <div className="text-3xl font-bold text-gray-900">{orgAvg}</div>
-            <div className="text-xs text-gray-400">Org Average</div>
-          </div>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Team Health</h1>
+        <p className="text-slate-500 mt-1">Composite score from engagement, OKR attainment, and feedback sentiment.</p>
       </div>
 
-      {teams.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teams.map((team) => (
-            <TeamHealthGauge
-              key={team.id}
-              teamId={team.team_id}
-              score={team.score}
-              factors={team.factors as Record<string, number>}
-            />
+      {latest && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center">
+            <TeamHealthGauge score={latest.score as number} />
+            <p className={`mt-2 font-semibold ${getHealthScoreColor(latest.score as number)}`}>
+              {getHealthScoreLabel(latest.score as number)}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Overall Score</p>
+          </div>
+          {[
+            { label: 'Engagement', value: latest.engagement_score as number },
+            { label: 'OKR Attainment', value: latest.okr_attainment as number },
+            { label: 'Feedback Sentiment', value: latest.feedback_sentiment as number },
+          ].map(m => (
+            <div key={m.label} className="bg-white rounded-xl border border-slate-200 p-6">
+              <p className="text-sm text-slate-500">{m.label}</p>
+              <p className={`text-3xl font-bold mt-2 ${getHealthScoreColor(m.value)}`}>{m.value}</p>
+              <p className="text-xs text-slate-400 mt-1">/100</p>
+            </div>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-16 text-gray-400">
-          <Activity size={48} className="mx-auto mb-4 opacity-40" />
-          <p className="font-medium">No team health data yet</p>
-          <p className="text-sm mt-1">Health scores are calculated daily at 8am UTC</p>
-        </div>
       )}
+
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="text-base font-semibold text-slate-900 mb-4">30-Day Trend</h2>
+        <AnalyticsChart data={scores?.slice().reverse() ?? []} dataKey="score" xKey="calculated_at" color="#6366f1" />
+      </div>
     </div>
   );
 }
