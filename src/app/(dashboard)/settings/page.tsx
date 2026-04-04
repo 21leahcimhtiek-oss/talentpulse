@@ -1,139 +1,71 @@
-"use client";
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Loader2, Check, UserPlus, Settings, User, Building2 } from "lucide-react";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"org" | "members" | "profile">("org");
+  const [profile, setProfile] = useState<{ full_name: string; email: string } | null>(null);
+  const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("employee");
-  const [inviting, setInviting] = useState(false);
-  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
-
-  async function handleInvite(e: React.FormEvent) {
-    e.preventDefault();
-    setInviting(true);
-    setInviteMsg(null);
-    try {
-      const res = await fetch("/api/auth/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-      });
-      const data = await res.json() as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Failed to send invite");
-      setInviteMsg(`Invitation sent to ${inviteEmail}`);
-      setInviteEmail("");
-    } catch (err) {
-      setInviteMsg(err instanceof Error ? err.message : "Failed to send invite");
-    } finally {
-      setInviting(false);
-    }
-  }
-
-  async function handleSignOut() {
+  useEffect(() => {
     const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('profiles').select('full_name, email').eq('id', user.id).single()
+          .then(({ data }) => {
+            if (data) { setProfile(data as { full_name: string; email: string }); setFullName((data as { full_name: string }).full_name ?? ''); }
+          });
+      }
+    });
+  }, []);
 
-  const tabs = [
-    { id: "org" as const, label: "Organization", icon: Building2 },
-    { id: "members" as const, label: "Members", icon: User },
-    { id: "profile" as const, label: "Profile", icon: Settings },
-  ];
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('profiles').update({ full_name: fullName }).eq('id', user?.id ?? '');
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="max-w-xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Manage your organization and account</p>
+        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-500 mt-1">Manage your profile and preferences.</p>
       </div>
-
-      <div className="flex border-b border-gray-200">
-        {tabs.map((tab) => (
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="text-base font-semibold text-slate-900 mb-4">Profile</h2>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+            <input
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <input
+              value={profile?.email ?? ''}
+              disabled
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed"
+            />
+          </div>
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === tab.id
-                ? "border-primary-600 text-primary-700"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            <tab.icon size={15} />
-            {tab.label}
+            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
           </button>
-        ))}
+        </form>
       </div>
-
-      {activeTab === "members" && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Invite Team Member</h2>
-          <form onSubmit={handleInvite} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="colleague@company.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="employee">Employee</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            {inviteMsg && (
-              <p className={`text-sm ${inviteMsg.includes("sent") ? "text-green-600" : "text-red-600"}`}>
-                {inviteMsg}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={inviting}
-              className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              {inviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-              Send Invitation
-            </button>
-          </form>
-        </div>
-      )}
-
-      {activeTab === "profile" && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Account</h2>
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
-          >
-            Sign out
-          </button>
-        </div>
-      )}
-
-      {activeTab === "org" && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Organization Settings</h2>
-          <p className="text-sm text-gray-500">
-            Contact support to update your organization name or slug.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
