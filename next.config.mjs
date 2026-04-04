@@ -1,15 +1,15 @@
-import { withSentryConfig } from '@sentry/nextjs';
+import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '*.supabase.co' },
-      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+      { protocol: "https", hostname: "*.supabase.co" },
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
     ],
   },
   experimental: {
-    serverComponentsExternalPackages: ['openai'],
+    serverComponentsExternalPackages: ["openai"],
   },
 };
 
