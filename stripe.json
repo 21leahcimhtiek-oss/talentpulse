@@ -1,10 +1,138 @@
 {
-  "product_name": "Talentpulse",
-  "description": "Talentpulse — Aurora Rayes LLC",
-  "plans": [
-    {"id": "starter", "name": "Starter", "amount": 4900, "interval": "month", "trial_days": 14},
-    {"id": "pro", "name": "Pro", "amount": 14900, "interval": "month", "trial_days": 14},
-    {"id": "enterprise", "name": "Enterprise", "amount": 0, "interval": "month", "custom": true}
-  ],
-  "webhook_events": ["checkout.session.completed", "customer.subscription.updated", "customer.subscription.deleted", "invoice.payment_failed"]
+  "products": [
+    {
+      "id": "prod_starter",
+      "name": "TalentPulse Starter",
+      "description": "Perfect for growing teams up to 25 employees.",
+      "active": true,
+      "metadata": {
+        "max_employees": "25",
+        "plan_tier": "starter",
+        "support_level": "email"
+      },
+      "prices": {
+        "monthly": {
+          "id": "price_starter_monthly",
+          "nickname": "Starter Monthly",
+          "currency": "usd",
+          "unit_amount": 7900,
+          "billing_scheme": "per_unit",
+          "recurring": { "interval": "month", "interval_count": 1 }
+        },
+        "annual": {
+          "id": "price_starter_annual",
+          "nickname": "Starter Annual",
+          "currency": "usd",
+          "unit_amount": 75840,
+          "billing_scheme": "per_unit",
+          "recurring": { "interval": "year", "interval_count": 1 },
+          "metadata": {
+            "monthly_equivalent": "6320",
+            "savings_amount": "18960",
+            "savings_percent": "20"
+          }
+        }
+      },
+      "features": [
+        "Up to 25 employees",
+        "OKR tracking with at-risk alerts",
+        "Structured performance reviews (1 to 5 scoring)",
+        "360 degree peer feedback collection",
+        "Basic analytics dashboard",
+        "Team health score (weekly)",
+        "CSV employee import",
+        "Standard rate limiting",
+        "Email support",
+        "Supabase-backed data storage with RLS"
+      ]
+    },
+    {
+      "id": "prod_pro",
+      "name": "TalentPulse Pro",
+      "description": "Unlimited employees with full AI-powered analytics and coaching.",
+      "active": true,
+      "metadata": {
+        "max_employees": "unlimited",
+        "plan_tier": "pro",
+        "support_level": "priority"
+      },
+      "prices": {
+        "monthly": {
+          "id": "price_pro_monthly",
+          "nickname": "Pro Monthly",
+          "currency": "usd",
+          "unit_amount": 19900,
+          "billing_scheme": "per_unit",
+          "recurring": { "interval": "month", "interval_count": 1 }
+        },
+        "annual": {
+          "id": "price_pro_annual",
+          "nickname": "Pro Annual",
+          "currency": "usd",
+          "unit_amount": 191040,
+          "billing_scheme": "per_unit",
+          "recurring": { "interval": "year", "interval_count": 1 },
+          "metadata": {
+            "monthly_equivalent": "15920",
+            "savings_amount": "47760",
+            "savings_percent": "20"
+          }
+        }
+      },
+      "features": [
+        "Unlimited employees",
+        "Everything in Starter",
+        "AI bias detection in performance reviews (GPT-4o)",
+        "AI weekly coaching suggestions per manager",
+        "Team health score (daily composite)",
+        "Advanced analytics, trends, and KPI charts",
+        "Custom OKR templates and categories",
+        "Full audit logs",
+        "Custom departments and manager hierarchy",
+        "CSV and PDF export",
+        "Stripe customer portal (self-serve billing)",
+        "Priority email and chat support",
+        "Slack integration (roadmap Q3 2025)"
+      ]
+    },
+    {
+      "id": "prod_enterprise",
+      "name": "TalentPulse Enterprise",
+      "description": "Custom pricing for large organizations with advanced security, compliance, and integration needs.",
+      "active": true,
+      "metadata": {
+        "max_employees": "unlimited",
+        "plan_tier": "enterprise",
+        "support_level": "dedicated"
+      },
+      "prices": {
+        "custom": {
+          "id": "price_enterprise_custom",
+          "nickname": "Enterprise Custom",
+          "currency": "usd",
+          "unit_amount": null,
+          "billing_scheme": "tiered",
+          "tiers_mode": "volume",
+          "note": "Contact sales for pricing based on employee count and contract terms"
+        }
+      },
+      "features": [
+        "Everything in Pro",
+        "Unlimited employees",
+        "SSO / SAML 2.0 (Okta, Azure AD, Google Workspace)",
+        "Custom AI model fine-tuning on org data",
+        "Dedicated Supabase instance (data residency)",
+        "SLA guarantee (99.9% uptime)",
+        "SOC2 Type II compliance reports on request",
+        "GDPR Data Processing Addendum (DPA)",
+        "Dedicated Customer Success Manager",
+        "Custom HRIS and ATS integrations (BambooHR, Workday, Rippling)",
+        "On-premise deployment option",
+        "Volume discounts on annual contract",
+        "24/7 priority phone and Slack support",
+        "Quarterly business reviews",
+        "Custom onboarding and training"
+      ]
+    }
+  ]
 }
