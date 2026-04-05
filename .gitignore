@@ -1,69 +1,40 @@
-# Dependencies
-node_modules/
-.pnp
+# dependencies
+/node_modules
+/.pnp
 .pnp.js
 
-# Next.js build outputs
-.next/
-out/
-build/
-dist/
+# testing
+/coverage
+/playwright-report
+/test-results
 
-# Environment variables - never commit these
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production
-.env.production.local
+# next.js
+/.next/
+/out/
 
-# Testing
-coverage/
-playwright-report/
-test-results/
-.nyc_output/
+# production
+/build
 
-# Vercel
-.vercel/
+# misc
+.DS_Store
+*.pem
 
-# Debug logs
-*.log
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
-lerna-debug.log*
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# local env files
+.env
+.env*.local
+.env.production
 
-# Editor directories and files
-.idea/
-.vscode/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-*.swp
-*.swo
+# vercel
+.vercel
 
-# TypeScript
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# Supabase local dev
-.supabase/
-
-# Sentry CLI
+# sentry
 .sentryclirc
-
-# Misc
-*.pem
-.cache/
