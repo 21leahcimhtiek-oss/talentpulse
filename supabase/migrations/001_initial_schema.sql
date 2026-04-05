@@ -1,227 +1,326 @@
--- Enable extensions
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- =====================
--- TABLES
--- =====================
-
-CREATE TABLE orgs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  plan TEXT NOT NULL DEFAULT 'starter' CHECK (plan IN ('starter', 'pro', 'enterprise')),
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- organizations
+CREATE TABLE organizations (
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       text NOT NULL,
+    slug       text UNIQUE,
+    created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE users (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin', 'manager', 'employee')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- profiles
+CREATE TABLE profiles (
+    id                 uuid PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+    org_id             uuid REFERENCES organizations,
+    email              text UNIQUE,
+    full_name          text,
+    avatar_url         text,
+    role               text DEFAULT 'employee' CHECK (role IN ('admin', 'manager', 'employee')),
+    stripe_customer_id text,
+    created_at         timestamptz DEFAULT now(),
+    updated_at         timestamptz DEFAULT now()
 );
 
-CREATE TABLE departments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  head_id UUID,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
+-- employees
 CREATE TABLE employees (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  department TEXT NOT NULL DEFAULT '',
-  manager_id UUID REFERENCES employees(id) ON DELETE SET NULL,
-  start_date DATE NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id uuid REFERENCES profiles ON DELETE CASCADE,
+    org_id     uuid REFERENCES organizations,
+    manager_id uuid REFERENCES profiles,
+    job_title  text,
+    department text,
+    hire_date  date,
+    status     text DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at timestamptz DEFAULT now()
 );
 
-ALTER TABLE departments ADD CONSTRAINT departments_head_id_fkey
-  FOREIGN KEY (head_id) REFERENCES employees(id) ON DELETE SET NULL;
-
+-- okrs
 CREATE TABLE okrs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  target NUMERIC(10,2) NOT NULL,
-  current NUMERIC(10,2) NOT NULL DEFAULT 0,
-  unit TEXT NOT NULL DEFAULT '%',
-  due_date DATE NOT NULL,
-  status TEXT NOT NULL DEFAULT 'on_track' CHECK (status IN ('on_track', 'at_risk', 'missed', 'achieved')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id uuid REFERENCES profiles ON DELETE CASCADE,
+    title       text NOT NULL,
+    description text,
+    quarter     text,
+    year        int,
+    progress    int DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+    status      text DEFAULT 'draft' CHECK (status IN ('draft', 'on_track', 'at_risk', 'completed')),
+    created_by  uuid REFERENCES profiles,
+    created_at  timestamptz DEFAULT now(),
+    updated_at  timestamptz DEFAULT now()
 );
 
-CREATE TABLE reviews (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  period TEXT NOT NULL,
-  score NUMERIC(3,1) NOT NULL CHECK (score >= 1 AND score <= 5),
-  strengths TEXT NOT NULL DEFAULT '',
-  improvements TEXT NOT NULL DEFAULT '',
-  ai_bias_flag BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- key_results
+CREATE TABLE key_results (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    okr_id        uuid REFERENCES okrs ON DELETE CASCADE,
+    title         text NOT NULL,
+    target_value  numeric,
+    current_value numeric DEFAULT 0,
+    unit          text,
+    created_at    timestamptz DEFAULT now()
 );
 
-CREATE TABLE feedback_360 (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  from_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  sentiment NUMERIC(4,3) NOT NULL DEFAULT 0 CHECK (sentiment >= -1 AND sentiment <= 1),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- performance_reviews
+CREATE TABLE performance_reviews (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    reviewer_id   uuid REFERENCES profiles,
+    reviewee_id   uuid REFERENCES profiles,
+    cycle         text NOT NULL,
+    overall_score numeric CHECK (overall_score BETWEEN 1 AND 5),
+    strengths     text,
+    improvements  text,
+    comments      text,
+    bias_flags    jsonb DEFAULT '[]',
+    submitted_at  timestamptz,
+    created_at    timestamptz DEFAULT now()
 );
 
-CREATE TABLE coaching_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  manager_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  suggestion_md TEXT NOT NULL,
-  ai_generated BOOLEAN NOT NULL DEFAULT TRUE,
-  acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- peer_feedback
+CREATE TABLE peer_feedback (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    giver_id        uuid REFERENCES profiles,
+    recipient_id    uuid REFERENCES profiles ON DELETE CASCADE,
+    content         text NOT NULL,
+    is_anonymous    boolean DEFAULT false,
+    sentiment_score numeric,
+    sentiment_label text,
+    created_at      timestamptz DEFAULT now()
 );
 
-CREATE TABLE team_health (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
-  team_id TEXT NOT NULL,
-  score NUMERIC(5,2) NOT NULL CHECK (score >= 0 AND score <= 100),
-  factors JSONB NOT NULL DEFAULT '{}',
-  measured_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- coaching_suggestions
+CREATE TABLE coaching_suggestions (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id  uuid REFERENCES profiles ON DELETE CASCADE,
+    manager_id   uuid REFERENCES profiles,
+    suggestions  jsonb DEFAULT '[]',
+    generated_at timestamptz DEFAULT now(),
+    created_at   timestamptz DEFAULT now()
 );
 
--- =====================
--- INDEXES
--- =====================
+-- team_health_scores
+CREATE TABLE team_health_scores (
+    id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id              uuid REFERENCES organizations,
+    score               int DEFAULT 0 CHECK (score BETWEEN 0 AND 100),
+    engagement_score    int,
+    okr_attainment      int,
+    feedback_sentiment  int,
+    calculated_at       timestamptz DEFAULT now()
+);
 
-CREATE INDEX idx_users_org_id ON users(org_id);
-CREATE INDEX idx_employees_org_id ON employees(org_id);
-CREATE INDEX idx_employees_manager_id ON employees(manager_id);
-CREATE INDEX idx_employees_department ON employees(department);
-CREATE INDEX idx_okrs_employee_id ON okrs(employee_id);
-CREATE INDEX idx_okrs_org_id ON okrs(org_id);
-CREATE INDEX idx_okrs_status ON okrs(status);
-CREATE INDEX idx_okrs_due_date ON okrs(due_date);
-CREATE INDEX idx_reviews_employee_id ON reviews(employee_id);
-CREATE INDEX idx_reviews_org_id ON reviews(org_id);
-CREATE INDEX idx_reviews_period ON reviews(period);
-CREATE INDEX idx_feedback_employee_id ON feedback_360(employee_id);
-CREATE INDEX idx_feedback_org_id ON feedback_360(org_id);
-CREATE INDEX idx_coaching_employee_id ON coaching_logs(employee_id);
-CREATE INDEX idx_coaching_manager_id ON coaching_logs(manager_id);
-CREATE INDEX idx_team_health_org_id ON team_health(org_id);
-CREATE INDEX idx_team_health_measured_at ON team_health(measured_at);
-CREATE INDEX idx_employees_name_trgm ON employees USING gin(name gin_trgm_ops);
+-- subscriptions
+CREATE TABLE subscriptions (
+    id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                uuid REFERENCES profiles ON DELETE CASCADE,
+    org_id                 uuid REFERENCES organizations,
+    stripe_customer_id     text,
+    stripe_subscription_id text UNIQUE,
+    plan_tier              text DEFAULT 'free',
+    billing_period         text DEFAULT 'monthly',
+    status                 text DEFAULT 'trialing',
+    current_period_end     timestamptz,
+    created_at             timestamptz DEFAULT now(),
+    updated_at             timestamptz DEFAULT now()
+);
 
--- =====================
--- ROW LEVEL SECURITY
--- =====================
+-- Enable RLS
+ALTER TABLE profiles             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employees            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE okrs                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE key_results          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE performance_reviews  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE peer_feedback        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coaching_suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_health_scores   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions        ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE orgs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
-ALTER TABLE okrs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feedback_360 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE coaching_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE team_health ENABLE ROW LEVEL SECURITY;
+-- RLS Policies: profiles
+CREATE POLICY "Users can view profiles in their org"
+    ON profiles FOR SELECT
+    USING (
+        auth.uid() = id
+        OR org_id IN (SELECT org_id FROM profiles WHERE id = auth.uid())
+    );
 
--- Helper function
-CREATE OR REPLACE FUNCTION get_user_org_id()
-RETURNS UUID AS $$
-  SELECT org_id FROM users WHERE id = auth.uid()
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+CREATE POLICY "Users can update own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = id);
 
-CREATE OR REPLACE FUNCTION get_user_role()
-RETURNS TEXT AS $$
-  SELECT role FROM users WHERE id = auth.uid()
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+-- RLS Policies: employees
+CREATE POLICY "Employees select same org"
+    ON employees FOR SELECT
+    TO authenticated
+    USING (org_id IN (SELECT org_id FROM profiles WHERE id = auth.uid()));
 
--- Orgs: users can see and update their own org
-CREATE POLICY "users_view_own_org" ON orgs FOR SELECT
-  USING (id = get_user_org_id());
-CREATE POLICY "admins_update_org" ON orgs FOR UPDATE
-  USING (id = get_user_org_id() AND get_user_role() = 'admin');
+CREATE POLICY "Employees insert same org"
+    ON employees FOR INSERT
+    TO authenticated
+    WITH CHECK (org_id IN (SELECT org_id FROM profiles WHERE id = auth.uid()));
 
--- Users: org isolation
-CREATE POLICY "org_isolation_select" ON users FOR SELECT
-  USING (org_id = get_user_org_id());
-CREATE POLICY "org_isolation_insert" ON users FOR INSERT
-  WITH CHECK (org_id = get_user_org_id());
-CREATE POLICY "org_isolation_update" ON users FOR UPDATE
-  USING (org_id = get_user_org_id());
-CREATE POLICY "org_isolation_delete" ON users FOR DELETE
-  USING (org_id = get_user_org_id() AND get_user_role() = 'admin');
+CREATE POLICY "Employees update same org"
+    ON employees FOR UPDATE
+    TO authenticated
+    USING (org_id IN (SELECT org_id FROM profiles WHERE id = auth.uid()));
 
--- Departments: org isolation
-CREATE POLICY "org_isolation" ON departments FOR ALL
-  USING (org_id = get_user_org_id());
+CREATE POLICY "Employees delete same org"
+    ON employees FOR DELETE
+    TO authenticated
+    USING (org_id IN (SELECT org_id FROM profiles WHERE id = auth.uid()));
 
--- Employees: org isolation
-CREATE POLICY "org_isolation" ON employees FOR ALL
-  USING (org_id = get_user_org_id());
+-- RLS Policies: okrs
+CREATE POLICY "OKRs select authenticated"
+    ON okrs FOR SELECT
+    TO authenticated
+    USING (true);
 
--- OKRs: org isolation; employees can only see their own
-CREATE POLICY "org_isolation" ON okrs FOR SELECT
-  USING (org_id = get_user_org_id());
-CREATE POLICY "managers_manage_okrs" ON okrs FOR INSERT
-  WITH CHECK (org_id = get_user_org_id());
-CREATE POLICY "managers_update_okrs" ON okrs FOR UPDATE
-  USING (org_id = get_user_org_id());
-CREATE POLICY "admins_delete_okrs" ON okrs FOR DELETE
-  USING (org_id = get_user_org_id() AND get_user_role() IN ('admin', 'manager'));
+CREATE POLICY "OKRs insert authenticated"
+    ON okrs FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
 
--- Reviews: org isolation
-CREATE POLICY "org_isolation" ON reviews FOR ALL
-  USING (org_id = get_user_org_id());
+CREATE POLICY "OKRs update authenticated"
+    ON okrs FOR UPDATE
+    TO authenticated
+    USING (true);
 
--- Feedback 360: org isolation
-CREATE POLICY "org_isolation" ON feedback_360 FOR ALL
-  USING (org_id = get_user_org_id());
+CREATE POLICY "OKRs delete authenticated"
+    ON okrs FOR DELETE
+    TO authenticated
+    USING (true);
 
--- Coaching logs: org isolation
-CREATE POLICY "org_isolation" ON coaching_logs FOR ALL
-  USING (org_id = get_user_org_id());
+-- RLS Policies: key_results
+CREATE POLICY "Key results select authenticated"
+    ON key_results FOR SELECT
+    TO authenticated
+    USING (true);
 
--- Team health: org isolation
-CREATE POLICY "org_isolation" ON team_health FOR ALL
-  USING (org_id = get_user_org_id());
+CREATE POLICY "Key results insert authenticated"
+    ON key_results FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
 
--- =====================
--- FUNCTIONS & TRIGGERS
--- =====================
+CREATE POLICY "Key results update authenticated"
+    ON key_results FOR UPDATE
+    TO authenticated
+    USING (true);
 
--- Auto-update OKR status based on progress
-CREATE OR REPLACE FUNCTION update_okr_status()
-RETURNS TRIGGER AS $$
+CREATE POLICY "Key results delete authenticated"
+    ON key_results FOR DELETE
+    TO authenticated
+    USING (true);
+
+-- RLS Policies: performance_reviews
+CREATE POLICY "Reviews select authenticated"
+    ON performance_reviews FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Reviews insert authenticated"
+    ON performance_reviews FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Reviews update authenticated"
+    ON performance_reviews FOR UPDATE
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Reviews delete authenticated"
+    ON performance_reviews FOR DELETE
+    TO authenticated
+    USING (true);
+
+-- RLS Policies: peer_feedback
+CREATE POLICY "Feedback select authenticated"
+    ON peer_feedback FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Feedback insert authenticated"
+    ON peer_feedback FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+CREATE POLICY "Feedback update authenticated"
+    ON peer_feedback FOR UPDATE
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Feedback delete authenticated"
+    ON peer_feedback FOR DELETE
+    TO authenticated
+    USING (true);
+
+-- RLS Policies: coaching_suggestions
+CREATE POLICY "Coaching select authenticated"
+    ON coaching_suggestions FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Coaching insert authenticated"
+    ON coaching_suggestions FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- RLS Policies: team_health_scores
+CREATE POLICY "Team health select authenticated"
+    ON team_health_scores FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- RLS Policies: subscriptions
+CREATE POLICY "Users can view own subscription"
+    ON subscriptions FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- Indexes
+CREATE INDEX ON employees            (org_id);
+CREATE INDEX ON employees            (manager_id);
+CREATE INDEX ON okrs                 (employee_id);
+CREATE INDEX ON performance_reviews  (reviewee_id);
+CREATE INDEX ON peer_feedback        (recipient_id);
+CREATE INDEX ON coaching_suggestions (employee_id);
+CREATE INDEX ON team_health_scores   (org_id, calculated_at DESC);
+
+-- Trigger: auto-create profile on new auth user
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  IF NEW.current >= NEW.target THEN
-    NEW.status := 'achieved';
-  ELSIF NEW.due_date < CURRENT_DATE AND NEW.current < NEW.target * 0.5 THEN
-    NEW.status := 'missed';
-  ELSIF NEW.current < NEW.target * 0.5 AND NEW.due_date < CURRENT_DATE + INTERVAL '14 days' THEN
-    NEW.status := 'at_risk';
-  ELSE
-    NEW.status := COALESCE(NEW.status, 'on_track');
-  END IF;
-  RETURN NEW;
+    INSERT INTO public.profiles (id, email, full_name, avatar_url)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        NEW.raw_user_meta_data ->> 'full_name',
+        NEW.raw_user_meta_data ->> 'avatar_url'
+    );
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE TRIGGER okr_status_trigger
-  BEFORE INSERT OR UPDATE ON okrs
-  FOR EACH ROW EXECUTE FUNCTION update_okr_status();
+CREATE OR REPLACE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Trigger: update updated_at
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER set_profiles_updated_at
+    BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE OR REPLACE TRIGGER set_okrs_updated_at
+    BEFORE UPDATE ON okrs
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
