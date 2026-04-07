@@ -24,7 +24,7 @@ export default async function CoachingPage() {
         {suggestions?.map(s => <CoachingCard key={s.id} suggestion={s as never} />)}
         {!suggestions?.length && (
           <div className="text-center py-16 bg-white rounded-xl border border-slate-200 text-slate-400">
-            <p className="text-4xl mb-3">🧠</p>
+            <p className="text-4xl mb-3">ðŸ§ </p>
             <p className="font-medium">No coaching suggestions yet.</p>
             <p className="text-sm mt-1">Suggestions are generated weekly based on your team performance data.</p>
           </div>
