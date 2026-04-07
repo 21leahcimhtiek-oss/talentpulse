@@ -21,9 +21,9 @@ export default function EmployeeCard({ employee }: Props) {
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-semibold text-slate-900 truncate">{profile?.full_name ?? '—'}</p>
-            <p className="text-sm text-slate-500 truncate">{employee.job_title ?? '—'}</p>
-            <p className="text-xs text-slate-400 truncate">{employee.department ?? '—'}</p>
+            <p className="font-semibold text-slate-900 truncate">{profile?.full_name ?? 'â€”'}</p>
+            <p className="text-sm text-slate-500 truncate">{employee.job_title ?? 'â€”'}</p>
+            <p className="text-xs text-slate-400 truncate">{employee.department ?? 'â€”'}</p>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-2">
