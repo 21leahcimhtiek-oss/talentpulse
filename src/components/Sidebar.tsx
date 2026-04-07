@@ -6,14 +6,14 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '🏠' },
-  { href: '/employees', label: 'Employees', icon: '👥' },
-  { href: '/okrs', label: 'OKRs', icon: '🎯' },
-  { href: '/reviews', label: 'Reviews', icon: '📋' },
-  { href: '/coaching', label: 'Coaching', icon: '🧠' },
-  { href: '/team-health', label: 'Team Health', icon: '❤️' },
-  { href: '/billing', label: 'Billing', icon: '💳' },
-  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/dashboard', label: 'Dashboard', icon: 'ðŸ ' },
+  { href: '/employees', label: 'Employees', icon: 'ðŸ‘¥' },
+  { href: '/okrs', label: 'OKRs', icon: 'ðŸŽ¯' },
+  { href: '/reviews', label: 'Reviews', icon: 'ðŸ“‹' },
+  { href: '/coaching', label: 'Coaching', icon: 'ðŸ§ ' },
+  { href: '/team-health', label: 'Team Health', icon: 'â¤ï¸' },
+  { href: '/billing', label: 'Billing', icon: 'ðŸ’³' },
+  { href: '/settings', label: 'Settings', icon: 'âš™ï¸' },
 ];
 
 interface SidebarProps {
