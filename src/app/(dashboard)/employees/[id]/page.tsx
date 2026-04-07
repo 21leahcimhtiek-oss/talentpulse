@@ -38,7 +38,7 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-900">{profile?.full_name}</h1>
-          <p className="text-slate-500">{(employee as { job_title?: string }).job_title} · {(employee as { department?: string }).department}</p>
+          <p className="text-slate-500">{(employee as { job_title?: string }).job_title} Â· {(employee as { department?: string }).department}</p>
           <p className="text-sm text-slate-400 mt-0.5">Joined {formatDate((employee as { hire_date: string }).hire_date)}</p>
         </div>
       </div>
