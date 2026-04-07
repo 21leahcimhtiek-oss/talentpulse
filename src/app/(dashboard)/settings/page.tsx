@@ -62,7 +62,7 @@ export default function SettingsPage() {
             disabled={saving}
             className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
+            {saving ? 'Savingâ€¦' : saved ? 'Saved!' : 'Save Changes'}
           </button>
         </form>
       </div>
