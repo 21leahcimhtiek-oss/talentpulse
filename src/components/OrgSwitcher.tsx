@@ -47,7 +47,7 @@ export default function OrgSwitcher() {
           {current?.name.charAt(0) ?? '?'}
         </span>
         <span className="flex-1 text-left truncate">{current?.name ?? 'Select Org'}</span>
-        <span className="text-slate-400 text-xs">{open ? '▲' : '▼'}</span>
+        <span className="text-slate-400 text-xs">{open ? 'â–²' : 'â–¼'}</span>
       </button>
       {open && orgs.length > 1 && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1">
