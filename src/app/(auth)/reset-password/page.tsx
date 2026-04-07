@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
                 disabled={loading}
                 className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors"
               >
-                {loading ? 'Sending…' : 'Send Reset Link'}
+                {loading ? 'Sendingâ€¦' : 'Send Reset Link'}
               </button>
               <Link href="/login" className="block text-center text-sm text-slate-500 hover:text-primary-600">Back to login</Link>
             </form>
