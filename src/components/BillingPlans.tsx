@@ -84,7 +84,7 @@ export default function BillingPlans({ currentPlan }: Props) {
               <ul className="space-y-2 mb-6">
                 {plan.features.map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-slate-600">
-                    <span className="text-green-500">✓</span> {f}
+                    <span className="text-green-500">âœ“</span> {f}
                   </li>
                 ))}
               </ul>
@@ -99,7 +99,7 @@ export default function BillingPlans({ currentPlan }: Props) {
                     : 'border border-primary-600 text-primary-600 hover:bg-primary-50'
                 }`}
               >
-                {isCurrent ? 'Current Plan' : loading === plan.id ? 'Redirecting…' : 'Upgrade Now'}
+                {isCurrent ? 'Current Plan' : loading === plan.id ? 'Redirectingâ€¦' : 'Upgrade Now'}
               </button>
             </div>
           );
