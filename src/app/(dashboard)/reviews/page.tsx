@@ -40,15 +40,15 @@ export default async function ReviewsPage() {
             {reviews?.map(r => (
               <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                  {(r.reviewee as { full_name?: string })?.full_name ?? '—'}
+                  {(r.reviewee as { full_name?: string })?.full_name ?? 'â€”'}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-600">
-                  {(r.reviewer as { full_name?: string })?.full_name ?? '—'}
+                  {(r.reviewer as { full_name?: string })?.full_name ?? 'â€”'}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-600">{(r as { cycle?: string }).cycle}</td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700">
-                    {(r as { overall_score?: number }).overall_score ?? '—'}<span className="text-slate-400 font-normal">/5</span>
+                    {(r as { overall_score?: number }).overall_score ?? 'â€”'}<span className="text-slate-400 font-normal">/5</span>
                   </span>
                 </td>
                 <td className="px-4 py-3">
