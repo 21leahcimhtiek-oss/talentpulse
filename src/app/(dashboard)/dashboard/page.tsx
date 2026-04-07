@@ -32,17 +32,17 @@ export default async function DashboardPage() {
   const latestHealth = healthScores?.[0]?.score ?? 0;
 
   const kpis = [
-    { label: 'Active Employees', value: employeeCount ?? 0, icon: '👥', color: 'bg-blue-50 text-blue-700' },
-    { label: 'Avg OKR Progress', value: `${avgOKRProgress}%`, icon: '🎯', color: 'bg-indigo-50 text-indigo-700' },
-    { label: 'At-Risk OKRs', value: atRiskOKRs, icon: '⚠️', color: 'bg-amber-50 text-amber-700' },
-    { label: 'Pending Reviews', value: pendingReviews ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-700' },
+    { label: 'Active Employees', value: employeeCount ?? 0, icon: 'ðŸ‘¥', color: 'bg-blue-50 text-blue-700' },
+    { label: 'Avg OKR Progress', value: `${avgOKRProgress}%`, icon: 'ðŸŽ¯', color: 'bg-indigo-50 text-indigo-700' },
+    { label: 'At-Risk OKRs', value: atRiskOKRs, icon: 'âš ï¸', color: 'bg-amber-50 text-amber-700' },
+    { label: 'Pending Reviews', value: pendingReviews ?? 0, icon: 'ðŸ“‹', color: 'bg-purple-50 text-purple-700' },
   ];
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          Good morning{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋
+          Good morning{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} ðŸ‘‹
         </h1>
         <p className="text-slate-500 mt-1">Here is your team performance snapshot.</p>
       </div>
