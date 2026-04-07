@@ -15,7 +15,7 @@ export default function CoachingCard({ suggestion }: Props) {
           <p className="font-semibold text-slate-900">{suggestion.employee?.full_name ?? 'Employee'}</p>
           <p className="text-xs text-slate-400 mt-0.5">Generated {formatDate(suggestion.generated_at as string)}</p>
         </div>
-        <span className="text-2xl">🧠</span>
+        <span className="text-2xl">ðŸ§ </span>
       </div>
       {suggestions && suggestions.length > 0 && (
         <ul className="space-y-2.5">
