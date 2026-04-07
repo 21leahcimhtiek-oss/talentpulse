@@ -54,14 +54,14 @@ export default function SignupPage() {
             {field('orgName', 'Organization Name', 'text', 'Acme Corp')}
             {field('fullName', 'Your Full Name', 'text', 'Jane Smith')}
             {field('email', 'Work Email', 'email', 'jane@acme.com')}
-            {field('password', 'Password', 'password', '••••••••')}
+            {field('password', 'Password', 'password', 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢')}
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
             <button
               type="submit"
               disabled={loading}
               className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors"
             >
-              {loading ? 'Creating account…' : 'Create Account'}
+              {loading ? 'Creating accountâ€¦' : 'Create Account'}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-500">
