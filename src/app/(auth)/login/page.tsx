@@ -69,7 +69,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               />
             </div>
             {error && (
@@ -82,7 +82,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors"
             >
-              {loading ? 'Signing in…' : 'Sign In'}
+              {loading ? 'Signing inâ€¦' : 'Sign In'}
             </button>
           </form>
           <div className="mt-4">
