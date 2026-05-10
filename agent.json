@@ -1,0 +1,8 @@
+{
+  "id": "talentpulse-agent",
+  "name": "TalentPulse Agent",
+  "system": "Deterministic",
+  "safety_layer": true,
+  "deterministic": true,
+  "capabilities": ["performance-analytics", "okr-tracking", "bias-detection"]
+}
