@@ -46,5 +46,6 @@
     "tailwindcss": "^3.4.0",
     "ts-jest": "^29.2.0",
     "typescript": "^5.5.0"
-  }
+  },
+  "description": "Aurora Rayes positioned product repository."
 }

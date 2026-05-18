@@ -112,3 +112,9 @@ See [deploy/vercel-deploy.md](deploy/vercel-deploy.md) for step-by-step deployme
 ## 📄 License
 
 MIT © 2024 [Aurora Rayes LLC](https://aurorarayes.com)
+
+<!-- AURORA_RAYES_POSITIONING_START -->
+## Aurora Rayes Positioning
+This repository is positioned under the Aurora Rayes portfolio as a practical, execution-ready product asset focused on clear value delivery, trustworthy implementation, and market-ready differentiation.
+<!-- AURORA_RAYES_POSITIONING_END -->
+
