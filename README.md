@@ -118,3 +118,9 @@ MIT © 2024 [Aurora Rayes LLC](https://aurorarayes.com)
 This repository is positioned under the Aurora Rayes portfolio as a practical, execution-ready product asset focused on clear value delivery, trustworthy implementation, and market-ready differentiation.
 <!-- AURORA_RAYES_POSITIONING_END -->
 
+## Aurora Polish
+This repository includes deterministic Aurora documentation polish for clearer onboarding and safer default operations.
+
+## No-Key-First
+Start with local, mock, or public data paths first. Add API keys only when required, keep them in environment variables, and never commit secrets.
+
